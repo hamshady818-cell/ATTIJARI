@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ============================================================= -->
+    <!--  ged-ai — Dedicated AI module                                  -->
+    <!--  Structure only at this stage. AI dependencies (Spring AI,     -->
+    <!--  Ollama, Tesseract) will be added in Phase 5.                  -->
+    <!--  Depends on: ged-application, ged-common                       -->
+    <!-- ============================================================= -->
+
+    <parent>
+        <groupId>com.awb.ged</groupId>
+        <artifactId>ged-awb</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>ged-ai</artifactId>
+    <name>GED-AWB :: AI</name>
+    <description>AI module — OCR, LLM, RAG, embeddings, classification. Dependencies added in Phase 5.</description>
+
+    <dependencies>
+        <!-- Internal modules -->
+        <dependency>
+            <groupId>com.awb.ged</groupId>
+            <artifactId>ged-application</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.awb.ged</groupId>
+            <artifactId>ged-common</artifactId>
+        </dependency>
+
+        <!-- Spring Context — for DI only -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+
+        <!-- ================================================= -->
+        <!--  AI dependencies will be added in Phase 5:         -->
+        <!--  - spring-ai-ollama-spring-boot-starter             -->
+        <!--  - spring-ai-openai-spring-boot-starter             -->
+        <!--  - tess4j (Tesseract OCR)                           -->
+        <!--  - pgvector support                                 -->
+        <!-- ================================================= -->
+    </dependencies>
+
+</project>

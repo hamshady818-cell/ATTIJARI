@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ============================================================= -->
+    <!--  ged-boot — Spring Boot Application Assembly                   -->
+    <!--  This is the ONLY module with the Spring Boot Maven Plugin.    -->
+    <!--  Assembles all modules and produces the executable JAR.        -->
+    <!-- ============================================================= -->
+
+    <parent>
+        <groupId>com.awb.ged</groupId>
+        <artifactId>ged-awb</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>ged-boot</artifactId>
+    <name>GED-AWB :: Boot</name>
+    <description>Spring Boot application assembly — configuration, profiles, and startup</description>
+
+    <dependencies>
+        <!-- ================================================= -->
+        <!--  All internal modules assembled here               -->
+        <!-- ================================================= -->
+        <dependency>
+            <groupId>com.awb.ged</groupId>
+            <artifactId>ged-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.awb.ged</groupId>
+            <artifactId>ged-infrastructure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.awb.ged</groupId>
+            <artifactId>ged-ai</artifactId>
+        </dependency>
+
+        <!-- ================================================= -->
+        <!--  Spring Boot Actuator — health checks, metrics     -->
+        <!-- ================================================= -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- ================================================= -->
+        <!--  Spring Boot DevTools — auto-reload in dev          -->
+        <!-- ================================================= -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ================================================= -->
+        <!--  Testing                                           -->
+        <!-- ================================================= -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Spring Boot Maven Plugin — creates executable JAR -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

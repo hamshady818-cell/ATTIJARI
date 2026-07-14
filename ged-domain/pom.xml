@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ============================================================= -->
+    <!--  ged-domain — Pure business domain (ZERO framework dependency) -->
+    <!--  Contains: Entities, Value Objects, Domain Services, Repos     -->
+    <!--  Depends only on: ged-common                                   -->
+    <!-- ============================================================= -->
+
+    <parent>
+        <groupId>com.awb.ged</groupId>
+        <artifactId>ged-awb</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>ged-domain</artifactId>
+    <name>GED-AWB :: Domain</name>
+    <description>Pure business domain — entities, value objects, domain services. Zero framework dependency.</description>
+
+    <dependencies>
+        <!-- Internal: shared utilities and contracts -->
+        <dependency>
+            <groupId>com.awb.ged</groupId>
+            <artifactId>ged-common</artifactId>
+        </dependency>
+
+        <!-- No Spring, No JPA, No framework dependencies -->
+        <!-- Lombok is inherited from parent -->
+    </dependencies>
+
+</project>

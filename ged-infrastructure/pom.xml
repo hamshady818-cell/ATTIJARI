@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ============================================================= -->
+    <!--  ged-infrastructure — Technical adapters                       -->
+    <!--  JPA, Storage, Security (Keycloak/JWT), Search, Notifications  -->
+    <!--  Depends on: ged-application, ged-common                       -->
+    <!-- ============================================================= -->
+
+    <parent>
+        <groupId>com.awb.ged</groupId>
+        <artifactId>ged-awb</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>ged-infrastructure</artifactId>
+    <name>GED-AWB :: Infrastructure</name>
+    <description>Infrastructure adapters — JPA persistence, file storage, Keycloak security, search, notifications</description>
+
+    <dependencies>
+        <!-- Internal modules -->
+        <dependency>
+            <groupId>com.awb.ged</groupId>
+            <artifactId>ged-application</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.awb.ged</groupId>
+            <artifactId>ged-common</artifactId>
+        </dependency>
+
+        <!-- ================================================= -->
+        <!--  Persistence                                       -->
+        <!-- ================================================= -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <!-- ================================================= -->
+        <!--  Security — Keycloak via OAuth2 Resource Server    -->
+        <!--  Keycloak is the SOLE identity provider.           -->
+        <!--  Spring Security is used ONLY for JWT validation.  -->
+        <!-- ================================================= -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+
+        <!-- ================================================= -->
+        <!--  Caching                                           -->
+        <!-- ================================================= -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+
+        <!-- ================================================= -->
+        <!--  MapStruct (for entity <-> domain mapping)         -->
+        <!-- ================================================= -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+        </dependency>
+
+        <!-- ================================================= -->
+        <!--  Testing                                           -->
+        <!-- ================================================= -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>

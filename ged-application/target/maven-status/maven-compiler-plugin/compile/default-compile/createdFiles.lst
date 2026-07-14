@@ -1,0 +1,11 @@
+com\awb\ged\application\port\in\package-info.class
+com\awb\ged\application\dto\package-info.class
+com\awb\ged\application\port\out\persistence\UserRepositoryPort.class
+com\awb\ged\application\package-info.class
+com\awb\ged\application\port\out\persistence\FolderRepositoryPort.class
+com\awb\ged\application\service\package-info.class
+com\awb\ged\application\mapper\package-info.class
+com\awb\ged\application\port\out\persistence\MetadataDefinitionRepositoryPort.class
+com\awb\ged\application\port\out\package-info.class
+com\awb\ged\application\port\out\persistence\DepartmentRepositoryPort.class
+com\awb\ged\application\port\out\persistence\DocumentRepositoryPort.class

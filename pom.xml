@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ============================================================= -->
+    <!--  GED-AWB — Smart Enterprise Document Management System        -->
+    <!--  Parent POM — Centralized Dependency & Plugin Management       -->
+    <!-- ============================================================= -->
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.1.0</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.awb.ged</groupId>
+    <artifactId>ged-awb</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>GED-AWB</name>
+    <description>Smart Enterprise Document Management System — Attijariwafa Bank</description>
+
+    <!-- ============================================================= -->
+    <!--  Modules                                                       -->
+    <!-- ============================================================= -->
+
+    <modules>
+        <module>ged-common</module>
+        <module>ged-domain</module>
+        <module>ged-application</module>
+        <module>ged-infrastructure</module>
+        <module>ged-ai</module>
+        <module>ged-api</module>
+        <module>ged-boot</module>
+    </modules>
+
+    <!-- ============================================================= -->
+    <!--  Properties — Single Source of Truth for Versions              -->
+    <!-- ============================================================= -->
+
+    <properties>
+        <!-- Java -->
+        <java.version>21</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!-- GED-AWB module version (follow parent) -->
+        <ged.version>${project.version}</ged.version>
+
+        <!-- Mapping & Boilerplate -->
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <lombok.version>1.18.46</lombok.version>
+        <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
+
+        <!-- API Documentation -->
+        <springdoc-openapi.version>2.8.17</springdoc-openapi.version>
+
+        <!-- Testing -->
+        <testcontainers.version>1.21.1</testcontainers.version>
+    </properties>
+
+    <!-- ============================================================= -->
+    <!--  Dependency Management — Centralized Version Control           -->
+    <!--  All modules inherit these versions without specifying them.   -->
+    <!-- ============================================================= -->
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- ================================================= -->
+            <!--  Internal Modules                                  -->
+            <!-- ================================================= -->
+            <dependency>
+                <groupId>com.awb.ged</groupId>
+                <artifactId>ged-common</artifactId>
+                <version>${ged.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.awb.ged</groupId>
+                <artifactId>ged-domain</artifactId>
+                <version>${ged.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.awb.ged</groupId>
+                <artifactId>ged-application</artifactId>
+                <version>${ged.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.awb.ged</groupId>
+                <artifactId>ged-infrastructure</artifactId>
+                <version>${ged.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.awb.ged</groupId>
+                <artifactId>ged-ai</artifactId>
+                <version>${ged.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.awb.ged</groupId>
+                <artifactId>ged-api</artifactId>
+                <version>${ged.version}</version>
+            </dependency>
+
+            <!-- ================================================= -->
+            <!--  MapStruct                                         -->
+            <!-- ================================================= -->
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct.version}</version>
+            </dependency>
+
+            <!-- ================================================= -->
+            <!--  API Documentation (SpringDoc OpenAPI)             -->
+            <!-- ================================================= -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc-openapi.version}</version>
+            </dependency>
+
+            <!-- ================================================= -->
+            <!--  Testcontainers BOM                                -->
+            <!-- ================================================= -->
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- ============================================================= -->
+    <!--  Global Dependencies (inherited by ALL modules)               -->
+    <!-- ============================================================= -->
+
+    <dependencies>
+        <!-- Lombok — compile-time only, no runtime footprint -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Testing — JUnit 5 + Mockito (inherited by all modules) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <!-- ============================================================= -->
+    <!--  Build — Plugin Management                                    -->
+    <!-- ============================================================= -->
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <!-- Maven Compiler — Java 21 + Annotation Processors -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                        <annotationProcessorPaths>
+                            <!-- Order matters: Lombok first, then binding, then MapStruct -->
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${lombok.version}</version>
+                            </path>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok-mapstruct-binding</artifactId>
+                                <version>${lombok-mapstruct-binding.version}</version>
+                            </path>
+                            <path>
+                                <groupId>org.mapstruct</groupId>
+                                <artifactId>mapstruct-processor</artifactId>
+                                <version>${mapstruct.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
+                        <compilerArgs>
+                            <!-- MapStruct: use Spring component model for DI -->
+                            <arg>-Amapstruct.defaultComponentModel=spring</arg>
+                            <!-- MapStruct: unmapped target properties generate warnings -->
+                            <arg>-Amapstruct.unmappedTargetPolicy=WARN</arg>
+                        </compilerArgs>
+                    </configuration>
+                </plugin>
+
+                <!-- Surefire — Unit tests -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <configuration>
+                        <includes>
+                            <include>**/*Test.java</include>
+                            <include>**/*Tests.java</include>
+                        </includes>
+                    </configuration>
+                </plugin>
+
+                <!-- Failsafe — Integration tests -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <configuration>
+                        <includes>
+                            <include>**/*IT.java</include>
+                            <include>**/*IntegrationTest.java</include>
+                        </includes>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+</project>

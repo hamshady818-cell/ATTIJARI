@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ============================================================= -->
+    <!--  ged-application — Use Cases, Ports, Application Services      -->
+    <!--  Orchestrates domain logic. Defines input/output ports.        -->
+    <!--  Depends on: ged-domain, ged-common                            -->
+    <!-- ============================================================= -->
+
+    <parent>
+        <groupId>com.awb.ged</groupId>
+        <artifactId>ged-awb</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>ged-application</artifactId>
+    <name>GED-AWB :: Application</name>
+    <description>Application layer — use cases, ports, DTOs, mappers, application services</description>
+
+    <dependencies>
+        <!-- Internal modules -->
+        <dependency>
+            <groupId>com.awb.ged</groupId>
+            <artifactId>ged-domain</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.awb.ged</groupId>
+            <artifactId>ged-common</artifactId>
+        </dependency>
+
+        <!-- Spring Context — for @Service, @Component DI only -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+
+        <!-- Spring Transaction — for @Transactional -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+        </dependency>
+
+        <!-- MapStruct — compile-time DTO mapping -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+        </dependency>
+
+        <!-- Validation API — for command/query validation -->
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>
