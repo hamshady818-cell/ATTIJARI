@@ -59,7 +59,7 @@
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
 
         <!-- API Documentation -->
-        <springdoc-openapi.version>2.8.17</springdoc-openapi.version>
+        <springdoc-openapi.version>3.0.3</springdoc-openapi.version>
 
         <!-- Testing -->
         <testcontainers.version>1.21.1</testcontainers.version>
