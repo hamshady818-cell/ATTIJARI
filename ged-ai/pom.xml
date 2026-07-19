@@ -38,7 +38,6 @@
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
         </dependency>
-
         <!-- ================================================= -->
         <!--  AI dependencies will be added in Phase 5:         -->
         <!--  - spring-ai-ollama-spring-boot-starter             -->
@@ -46,6 +45,12 @@
         <!--  - tess4j (Tesseract OCR)                           -->
         <!--  - pgvector support                                 -->
         <!-- ================================================= -->
+        <!-- OCR — Tesseract via tess4j -->
+        <dependency>
+            <groupId>net.sourceforge.tess4j</groupId>
+            <artifactId>tess4j</artifactId>
+            <version>5.13.0</version>
+        </dependency>
     </dependencies>
 
 </project>
