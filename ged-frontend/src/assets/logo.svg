@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 60" width="100%" height="100%">
+  <rect width="320" height="60" fill="transparent"/>
+
+  <!-- Official Attijariwafa Bank Icon Mark (100x100 coordinate system scaled to 50x50) -->
+  <g transform="translate(10, 5) scale(0.5)">
+    <!-- Yellow Top Section (with rounded top corners) -->
+    <path d="M 10,60 L 10,22 A 12,12 0 0,1 22,10 L 78,10 A 12,12 0 0,1 90,22 L 90,50 L 75,40 L 52,68 L 36,40 Z" fill="#FFC600" />
+    
+    <!-- Red Bottom Section (with sharp bottom corners) -->
+    <path d="M 10,60 L 36,40 L 52,68 L 75,40 L 90,50 L 90,90 L 10,90 Z" fill="#E30613" />
+    
+    <!-- Dividing AW black wave (extends slightly past margins) -->
+    <path d="M 6,61 L 36,40 L 52,68 L 75,40 L 94,49" stroke="#1C1B1B" stroke-width="7" fill="none" stroke-linejoin="round" stroke-linecap="round" />
+    
+    <!-- House square window symbol under the first arch -->
+    <rect x="33" y="53" width="6" height="6" fill="#1C1B1B" />
+  </g>
+
+  <!-- Text Label positioned next to the icon -->
+  <text x="68" y="32" font-family="'Inter', sans-serif" font-weight="900" font-size="16" fill="#1F2937" letter-spacing="0.5">ATTIJARIWAFA BANK</text>
+  <text x="68" y="46" font-family="'Inter', sans-serif" font-weight="500" font-size="9" fill="#E30613" letter-spacing="3.5">GED INTRA-NET</text>
+</svg>

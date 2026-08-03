@@ -168,6 +168,26 @@ public class FolderJpaEntity extends BaseEntity {
     )
     private UserJpaEntity updatedBy;
 
+    /**
+     * Timestamp of soft-deletion. Null if the folder is not deleted.
+     */
+    @Column(name = "deleted", nullable = false)
+    @Builder.Default
+    private boolean deleted = false;
+
+    @Column(name = "deleted_at")
+    private java.time.Instant deletedAt;
+
+    /**
+     * User who soft-deleted this folder. Null if not deleted.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "deleted_by",
+            foreignKey = @ForeignKey(name = "fk_folders_deleted_by")
+    )
+    private UserJpaEntity deletedBy;
+
     // ─────────────────────────────────────────────────────────────────────────
     //  Bidirectional: ACL entries
     // ─────────────────────────────────────────────────────────────────────────
@@ -187,4 +207,8 @@ public class FolderJpaEntity extends BaseEntity {
     )
     @Builder.Default
     private List<FolderPermissionJpaEntity> permissions = new ArrayList<>();
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
 }

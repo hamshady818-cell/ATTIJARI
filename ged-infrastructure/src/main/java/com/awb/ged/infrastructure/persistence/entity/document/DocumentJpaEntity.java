@@ -155,6 +155,26 @@ public class DocumentJpaEntity extends BaseEntity {
     @Column(name = "retention_until")
     private LocalDate retentionUntil;
 
+    /**
+     * Timestamp of soft-deletion. Null if the document is not deleted.
+     */
+    @Column(name = "deleted", nullable = false)
+    @Builder.Default
+    private boolean deleted = false;
+
+    @Column(name = "deleted_at")
+    private java.time.Instant deletedAt;
+
+    /**
+     * User who soft-deleted this document. Null if not deleted.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "deleted_by",
+            foreignKey = @ForeignKey(name = "fk_documents_deleted_by")
+    )
+    private UserJpaEntity deletedBy;
+
     // ─────────────────────────────────────────────────────────────────────────
     //  Relationships — ownership & location
     // ─────────────────────────────────────────────────────────────────────────
@@ -162,11 +182,10 @@ public class DocumentJpaEntity extends BaseEntity {
     /**
      * Folder in which this document resides.
      */
-    @NotNull
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
             name = "folder_id",
-            nullable = false,
             foreignKey = @ForeignKey(name = "fk_documents_folder")
     )
     private FolderJpaEntity folder;
@@ -330,4 +349,8 @@ public class DocumentJpaEntity extends BaseEntity {
     )
     @Builder.Default
     private Set<TagJpaEntity> tags = new HashSet<>();
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
 }

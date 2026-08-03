@@ -1,5 +1,6 @@
 package com.awb.ged.infrastructure.persistence.entity.user;
 
+import com.awb.ged.infrastructure.persistence.entity.department.DepartmentJpaEntity;
 import com.awb.ged.infrastructure.persistence.entity.shared.BaseEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
@@ -110,12 +111,14 @@ public class UserJpaEntity extends BaseEntity {
     private String lastName;
 
     /**
-     * Organizational department or business unit.
-     * Application-specific — not managed by Keycloak.
+     * Organizational department or business unit this user belongs to.
      */
-    @Size(max = 150)
-    @Column(name = "department", length = 150)
-    private String department;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "department_id",
+            foreignKey = @ForeignKey(name = "fk_users_department")
+    )
+    private DepartmentJpaEntity department;
 
     /**
      * Job title within the organization.

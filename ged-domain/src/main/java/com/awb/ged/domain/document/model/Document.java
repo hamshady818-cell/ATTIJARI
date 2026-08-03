@@ -55,6 +55,12 @@ public class Document {
     /** Timestamp of document creation in UTC */
     private Instant createdAt;
 
+    /** Timestamp of soft-deletion, null if not deleted */
+    private Instant deletedAt;
+
+    /** ID of the user who deleted this document, null if not deleted */
+    private UUID deletedBy;
+
     /** Timestamp of last document modification in UTC */
     private Instant updatedAt;
 
@@ -65,6 +71,14 @@ public class Document {
      * @return true if the document is locked and the lock has not expired
      */
     public boolean isCurrentlyLocked(Instant now) {
+
         return lock != null && !lock.isExpired(now);
     }
+    /**
+     * Checks if the document has been soft-deleted.
+     */
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
 }

@@ -1,0 +1,40 @@
+spring:
+  # Flyway migrations applied by Testcontainers DataSource
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  # Disable Keycloak JWT resource server — replaced by @WithMockUser in tests
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:9999/not-used  # overridden; bearer-token-introspection disabled below
+
+  # Disable auto-config that tries to connect to OAuth2 issuer at startup
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration
+
+  # Disable Spring AI / Ollama — not available in test environment
+  ai:
+    ollama:
+      base-url: http://localhost:19999
+      chat:
+        model: test-model
+
+ged:
+  storage:
+    type: filesystem
+    base-path: ./target/test-storage-data
+
+tesseract:
+  datapath: ./not-required-in-test

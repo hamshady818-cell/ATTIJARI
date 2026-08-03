@@ -30,6 +30,9 @@ public class User {
     /** Email address of the user */
     private String email;
 
+    /** Unique login username (synced from Keycloak) */
+    private String username;
+
     /** First name / Given name */
     private String firstName;
 

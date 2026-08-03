@@ -4,12 +4,12 @@ spring:
 
   datasource:
     url: jdbc:postgresql://localhost:5432/ged_db
-    username: postgres
-    password: Alpha55@@
+    username: ged_app_user
+    password: ${DB_PASSWORD}
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
 
   flyway:
@@ -22,8 +22,22 @@ spring:
         jwt:
           issuer-uri: http://localhost:8081/realms/ged-awb
 
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        model: llama3.2:3b
+
 server:
   port: 8080
 
 tesseract:
   datapath: C:\Program Files\Tesseract-OCR\tessdata
+
+ged:
+  storage:
+    type: filesystem
+    base-path: ./storage-data
+
+
+

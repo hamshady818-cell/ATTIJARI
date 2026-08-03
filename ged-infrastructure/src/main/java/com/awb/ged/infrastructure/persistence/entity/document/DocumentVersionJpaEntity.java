@@ -122,6 +122,11 @@ public class DocumentVersionJpaEntity extends BaseEntity {
     @Column(name = "storage_path", nullable = false, updatable = false)
     private String storagePath;
 
+    @NotBlank
+    @Size(max = 255)
+    @Column(name = "file_reference_id", nullable = false, updatable = false, length = 255)
+    private String fileReferenceId;
+
     // ─────────────────────────────────────────────────────────────────────────
     //  File integrity & metadata
     // ─────────────────────────────────────────────────────────────────────────
