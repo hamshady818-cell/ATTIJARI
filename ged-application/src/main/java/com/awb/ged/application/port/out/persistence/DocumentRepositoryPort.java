@@ -35,6 +35,8 @@ public interface DocumentRepositoryPort {
      */
     Optional<Document> findById(UUID id);
 
+    Optional<Document> findByIdIncludingDeleted(UUID id);
+
     /**
      * Finds all documents in a specific folder.
      *

@@ -31,6 +31,8 @@ public interface FolderRepositoryPort {
      */
     Optional<Folder> findById(UUID id);
 
+    Optional<Folder> findByIdIncludingDeleted(UUID id);
+
     /**
      * Finds folders located under a specific parent folder.
      *

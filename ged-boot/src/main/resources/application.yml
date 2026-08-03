@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: ged-boot
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ged_db
+    username: ged_app_user
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8081/realms/ged-awb
+
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        model: llama3.2:3b
+
+server:
+  port: 8080
+
+tesseract:
+  datapath: C:\Program Files\Tesseract-OCR\tessdata
+
+ged:
+  storage:
+    type: filesystem
+    base-path: ./storage-data
+
+
+

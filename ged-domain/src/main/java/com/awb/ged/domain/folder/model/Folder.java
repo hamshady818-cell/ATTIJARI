@@ -36,6 +36,19 @@ public class Folder {
     /** Timestamp of folder creation in UTC */
     private Instant createdAt;
 
+    /** Timestamp of soft-deletion, null if not deleted */
+    private Instant deletedAt;
+
+    /** ID of the user who deleted this folder, null if not deleted */
+    private UUID deletedBy;
+
     /** Timestamp of last folder modification in UTC */
     private Instant updatedAt;
+
+    /**
+     * Checks if the folder has been soft-deleted.
+     */
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
 }

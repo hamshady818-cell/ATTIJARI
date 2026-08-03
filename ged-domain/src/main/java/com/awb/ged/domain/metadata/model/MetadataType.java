@@ -19,6 +19,18 @@ public enum MetadataType {
     /** Temporal dates or timestamps */
     DATE,
 
+    /** Date and time */
+    DATETIME,
+
     /** True/False values */
-    BOOLEAN
+    BOOLEAN,
+
+    /** Single choice from predefined options */
+    SELECT,
+
+    /** Multiple choices from predefined options */
+    MULTI_SELECT,
+
+    /** Web URL string */
+    URL
 }

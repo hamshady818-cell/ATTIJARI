@@ -34,6 +34,7 @@ public enum ErrorCode {
     FOLDER_NOT_FOUND("ERR-FLD-001", "The requested folder was not found.", ErrorCategory.FOLDER),
     FOLDER_DUPLICATE("ERR-FLD-002", "A folder with the same name already exists in the target location.", ErrorCategory.FOLDER),
     FOLDER_CYCLE_DETECTED("ERR-FLD-003", "Cannot move folder: would create a circular dependency.", ErrorCategory.FOLDER),
+    FOLDER_NOT_EMPTY("ERR-FLD-004", "The folder is not empty and cannot be deleted.", ErrorCategory.FOLDER),
     
     // --- USER MANAGEMENT (ERR-USR-xxx) ---
     USER_NOT_FOUND("ERR-USR-001", "The specified user was not found.", ErrorCategory.USER),
