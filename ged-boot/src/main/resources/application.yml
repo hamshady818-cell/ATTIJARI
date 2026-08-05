@@ -36,8 +36,12 @@ tesseract:
 
 ged:
   storage:
-    type: filesystem
-    base-path: ./storage-data
+    type: minio
+    minio:
+      endpoint: http://localhost:9000
+      access-key: minioadmin
+      secret-key: minioadmin123
+      bucket: ged-documents
 
 
 
