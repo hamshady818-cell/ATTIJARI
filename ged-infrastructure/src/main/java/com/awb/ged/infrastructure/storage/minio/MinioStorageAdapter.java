@@ -6,6 +6,8 @@ import com.awb.ged.common.exception.StorageException;
 import com.awb.ged.domain.document.model.FileReferenceId;
 import io.minio.*;
 import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -16,6 +18,8 @@ import java.io.InputStream;
 @Component
 @ConditionalOnProperty(name = "ged.storage.type", havingValue = "minio")
 public class MinioStorageAdapter implements StoragePort {
+
+    private static final Logger log = LoggerFactory.getLogger(MinioStorageAdapter.class);
 
     private final MinioClient minioClient;
     private final String bucket;
@@ -34,11 +38,7 @@ public class MinioStorageAdapter implements StoragePort {
                 minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
             }
         } catch (Exception e) {
-            throw new StorageException(
-                    ErrorCode.STORAGE_WRITE_ERROR,
-                    "Failed to initialize MinIO bucket: " + bucket,
-                    e
-            );
+            log.warn("MinIO server not reachable at startup for bucket '{}'. Operations will retry on demand: {}", bucket, e.getMessage());
         }
     }
 
@@ -86,6 +86,27 @@ public class MinioStorageAdapter implements StoragePort {
             throw new StorageException(
                     ErrorCode.STORAGE_READ_ERROR,
                     "Failed to read object from MinIO bucket " + bucket + " at path: " + fileReferenceId.getValue(),
+                    e
+            );
+        }
+    }
+
+    @Override
+    public InputStream loadStream(FileReferenceId fileReferenceId) {
+        if (fileReferenceId == null || fileReferenceId.getValue() == null) {
+            throw new StorageException(ErrorCode.STORAGE_READ_ERROR, "FileReferenceId cannot be null");
+        }
+        try {
+            return minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(fileReferenceId.getValue())
+                            .build()
+            );
+        } catch (Exception e) {
+            throw new StorageException(
+                    ErrorCode.STORAGE_READ_ERROR,
+                    "Failed to stream object from MinIO bucket " + bucket + " at path: " + fileReferenceId.getValue(),
                     e
             );
         }

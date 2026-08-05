@@ -67,6 +67,12 @@ public class FolderRepositoryAdapter implements FolderRepositoryPort {
         folderJpaRepository.deleteById(id);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public long countAllFolders() {
+        return folderJpaRepository.countByDeletedAtIsNull();
+    }
+
     private Folder mapToDomain(FolderJpaEntity entity) {
         if (entity == null) return null;
         return Folder.builder()

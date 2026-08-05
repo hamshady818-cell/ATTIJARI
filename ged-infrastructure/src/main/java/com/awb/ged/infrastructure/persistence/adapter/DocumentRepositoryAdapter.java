@@ -1,5 +1,7 @@
 package com.awb.ged.infrastructure.persistence.adapter;
 
+import com.awb.ged.application.dto.document.DocumentSearchQuery;
+import com.awb.ged.application.dto.document.DocumentSearchResultDto;
 import com.awb.ged.application.port.out.persistence.DocumentRepositoryPort;
 import com.awb.ged.domain.document.model.*;
 import com.awb.ged.infrastructure.persistence.entity.document.DocumentCheckoutJpaEntity;
@@ -9,11 +11,17 @@ import com.awb.ged.infrastructure.persistence.entity.folder.FolderJpaEntity;
 import com.awb.ged.infrastructure.persistence.entity.tag.TagJpaEntity;
 import com.awb.ged.infrastructure.persistence.entity.user.UserJpaEntity;
 import com.awb.ged.infrastructure.persistence.repository.*;
+import com.awb.ged.infrastructure.persistence.specification.DocumentSpecifications;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 @Transactional
@@ -40,7 +48,7 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
         this.tagJpaRepository = tagJpaRepository;
     }
 
-    // --- Document Operations ---
+    // --- Document CRUD ---
 
     @Override
     public Document save(Document document) {
@@ -83,6 +91,41 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
         documentJpaRepository.deleteById(id);
     }
 
+    // --- Search ---
+
+    @Override
+    @Transactional(readOnly = true)
+    public com.awb.ged.common.model.PageResponse<DocumentSearchResultDto> search(DocumentSearchQuery query) {
+        String sortField = "title".equals(query.getSortBy()) || "name".equals(query.getSortBy()) ? "title" : query.getSortBy();
+        org.springframework.data.domain.Sort.Direction direction = "ASC".equalsIgnoreCase(query.getSortDirection())
+                ? org.springframework.data.domain.Sort.Direction.ASC
+                : org.springframework.data.domain.Sort.Direction.DESC;
+
+        Pageable pageable = PageRequest.of(query.getPage(), query.getSize(), org.springframework.data.domain.Sort.by(direction, sortField));
+
+        Page<DocumentJpaEntity> page = documentJpaRepository.findAll(
+                DocumentSpecifications.buildSearch(query), pageable);
+
+        List<DocumentSearchResultDto> dtos = page.getContent()
+                .stream()
+                .map(this::mapToSearchResult)
+                .toList();
+
+        return com.awb.ged.common.model.PageResponse.<DocumentSearchResultDto>builder()
+                .content(dtos)
+                .pageNumber(page.getNumber())
+                .pageSize(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .sortBy(query.getSortBy())
+                .sortDirection(query.getSortDirection())
+                .first(page.isFirst())
+                .last(page.isLast())
+                .empty(page.isEmpty())
+                .build();
+    }
+
+
     // --- Document Version Operations ---
 
     @Override
@@ -107,12 +150,113 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
                 .toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public int countVersionsByDocumentId(UUID documentId) {
+        return documentVersionJpaRepository.countByDocumentId(documentId);
+    }
+
+    // --- Checkout / Lock Operations ---
+
+    @Override
+    public void saveCheckout(UUID documentId, UUID userId) {
+        DocumentJpaEntity document = documentJpaRepository.findById(documentId)
+                .orElseThrow(() -> new com.awb.ged.common.exception.NotFoundException(
+                        com.awb.ged.common.exception.ErrorCode.DOCUMENT_NOT_FOUND,
+                        "Document not found: " + documentId));
+        UserJpaEntity user = userJpaRepository.findById(userId)
+                .orElseThrow(() -> new com.awb.ged.common.exception.NotFoundException(
+                        com.awb.ged.common.exception.ErrorCode.USER_NOT_FOUND,
+                        "User not found: " + userId));
+
+        DocumentCheckoutJpaEntity checkout = DocumentCheckoutJpaEntity.builder()
+                .document(document)
+                .checkedOutBy(user)
+                .checkedOutAt(Instant.now())
+                .build();
+
+        documentCheckoutJpaRepository.save(checkout);
+    }
+
+    @Override
+    public void checkin(UUID documentId, UUID userId) {
+        documentCheckoutJpaRepository
+                .findByDocumentIdAndCheckedInAtIsNull(documentId)
+                .ifPresent(checkout -> {
+                    checkout.setCheckedInAt(Instant.now());
+                    documentCheckoutJpaRepository.save(checkout);
+                });
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<CheckoutInfo> findActiveCheckout(UUID documentId) {
+        return documentCheckoutJpaRepository
+                .findByDocumentIdAndCheckedInAtIsNull(documentId)
+                .map(c -> new CheckoutInfo(
+                        c.getCheckedOutBy() != null ? c.getCheckedOutBy().getId() : null,
+                        c.getCheckedOutAt(),
+                        c.getExpectedReturnAt()
+                ));
+    }
+
+    // --- Dashboard Stats ---
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countAllDocuments() {
+        return documentJpaRepository.countNonDeleted();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long sumAllVersionSizeBytes() {
+        return documentJpaRepository.sumAllVersionSizeBytes();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Document> findRecentUploads(int limit) {
+        return documentJpaRepository
+                .findRecentUploads(PageRequest.of(0, limit))
+                .stream()
+                .map(this::mapToDomain)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Document> findRecentlyModified(int limit) {
+        return documentJpaRepository
+                .findRecentlyModified(PageRequest.of(0, limit))
+                .stream()
+                .map(this::mapToDomain)
+                .toList();
+    }
+
+    // --- Bulk Tag ---
+
+    @Override
+    public void addTagToDocument(UUID documentId, String tagName) {
+        DocumentJpaEntity document = documentJpaRepository.findById(documentId).orElse(null);
+        if (document == null) return;
+
+        TagJpaEntity tag = tagJpaRepository.findByName(tagName).orElseGet(() -> {
+            TagJpaEntity newTag = new TagJpaEntity();
+            newTag.setId(UUID.randomUUID());
+            newTag.setName(tagName);
+            return tagJpaRepository.save(newTag);
+        });
+
+        document.getTags().add(tag);
+        documentJpaRepository.save(document);
+    }
+
     // --- Private Mapping Helpers ---
 
     private Document mapToDomain(DocumentJpaEntity entity) {
         if (entity == null) return null;
 
-        // Construct DocumentLock if there is an active checkout (D3)
         DocumentLock lock = null;
         Optional<DocumentCheckoutJpaEntity> activeCheckout = documentCheckoutJpaRepository
                 .findByDocumentIdAndCheckedInAtIsNull(entity.getId());
@@ -126,27 +270,63 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
                     .build();
         }
 
-        // Map tags (D4)
         List<DocumentTag> tags = entity.getTags().stream()
                 .map(t -> DocumentTag.builder()
                         .name(t.getName())
                         .generatedByIa(false)
                         .confidence(null)
                         .build())
-        .toList();
+                .toList();
+
+        // Map status from JPA enum to domain enum
+        Document.DocumentStatus domainStatus = Document.DocumentStatus.DRAFT;
+        if (entity.getStatus() != null) {
+            try {
+                domainStatus = Document.DocumentStatus.valueOf(entity.getStatus().name());
+            } catch (IllegalArgumentException ignored) {}
+        }
 
         return Document.builder()
                 .id(entity.getId())
-                .name(entity.getTitle()) // D1: name <-> title
+                .name(entity.getTitle())
+                .description(entity.getDescription())
+                .status(domainStatus)
+                .mimeType(entity.getMimeType())
                 .folderId(entity.getFolder() != null ? entity.getFolder().getId() : null)
-                .categoryId(null) // D2: categoryId not mapped
+                .categoryId(null)
                 .ownerId(entity.getOwner() != null ? entity.getOwner().getId() : null)
                 .activeVersionId(entity.getCurrentVersion() != null ? entity.getCurrentVersion().getId() : null)
-                .lock(lock) // D3: active checkout lock
+                .lock(lock)
                 .tags(new ArrayList<>(tags))
                 .createdAt(entity.getCreatedAt())
                 .deletedAt(entity.getDeletedAt())
                 .deletedBy(entity.getDeletedBy() != null ? entity.getDeletedBy().getId() : null)
+                .updatedAt(entity.getUpdatedAt())
+                .build();
+    }
+
+    private DocumentSearchResultDto mapToSearchResult(DocumentJpaEntity entity) {
+        boolean locked = documentCheckoutJpaRepository
+                .findByDocumentIdAndCheckedInAtIsNull(entity.getId()).isPresent();
+
+        List<String> tagNames = entity.getTags().stream()
+                .map(TagJpaEntity::getName)
+                .toList();
+
+        return DocumentSearchResultDto.builder()
+                .id(entity.getId())
+                .name(entity.getTitle())
+                .description(entity.getDescription())
+                .status(entity.getStatus() != null ? entity.getStatus().name() : null)
+                .mimeType(entity.getMimeType())
+                .folderId(entity.getFolder() != null ? entity.getFolder().getId() : null)
+                .folderName(entity.getFolder() != null ? entity.getFolder().getName() : null)
+                .ownerId(entity.getOwner() != null ? entity.getOwner().getId() : null)
+                .ownerUsername(entity.getOwner() != null ? entity.getOwner().getUsername() : null)
+                .activeVersionId(entity.getCurrentVersion() != null ? entity.getCurrentVersion().getId() : null)
+                .isLocked(locked)
+                .tags(tagNames)
+                .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
     }
@@ -169,12 +349,10 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
             currentVersion = documentVersionJpaRepository.findById(domain.getActiveVersionId()).orElse(null);
         }
 
-        // Map tags
         Set<TagJpaEntity> tags = new HashSet<>();
         if (domain.getTags() != null) {
             for (DocumentTag tagDomain : domain.getTags()) {
-                tagJpaRepository.findByName(tagDomain.getName())
-                        .ifPresent(tags::add);
+                tagJpaRepository.findByName(tagDomain.getName()).ifPresent(tags::add);
             }
         }
 
@@ -183,8 +361,19 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
             deleter = userJpaRepository.findById(domain.getDeletedBy()).orElse(null);
         }
 
+        // Map domain status to JPA status
+        DocumentJpaEntity.DocumentStatus jpaStatus = DocumentJpaEntity.DocumentStatus.DRAFT;
+        if (domain.getStatus() != null) {
+            try {
+                jpaStatus = DocumentJpaEntity.DocumentStatus.valueOf(domain.getStatus().name());
+            } catch (IllegalArgumentException ignored) {}
+        }
+
         DocumentJpaEntity entity = DocumentJpaEntity.builder()
-                .title(domain.getName()) // D1: name <-> title
+                .title(domain.getName())
+                .description(domain.getDescription())
+                .status(jpaStatus)
+                .mimeType(domain.getMimeType())
                 .folder(folder)
                 .owner(owner)
                 .createdBy(owner)
@@ -205,18 +394,17 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
     private DocumentVersion mapVersionToDomain(DocumentVersionJpaEntity entity) {
         if (entity == null) return null;
 
-        // D5: FileReferenceId = storageBucket + "/" + storagePath
         String fileRefValue = entity.getStorageBucket() + "/" + entity.getStoragePath();
 
         return DocumentVersion.builder()
                 .id(entity.getId())
                 .documentId(entity.getDocument() != null ? entity.getDocument().getId() : null)
                 .versionNumber(entity.getVersionNumber())
-                .hash(entity.getChecksumSha256()) // D5: hash <-> checksumSha256
-                .sizeBytes(entity.getFileSizeBytes()) // D5: sizeBytes <-> fileSizeBytes
-                .fileReferenceId(new FileReferenceId(fileRefValue)) // D5: FileReferenceId
+                .hash(entity.getChecksumSha256())
+                .sizeBytes(entity.getFileSizeBytes())
+                .fileReferenceId(new FileReferenceId(fileRefValue))
                 .uploadedBy(entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null)
-                .uploadedAt(entity.getCreatedAt()) // D5: uploadedAt <-> createdAt
+                .uploadedAt(entity.getCreatedAt())
                 .build();
     }
 
@@ -233,7 +421,6 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
             uploader = userJpaRepository.findById(domain.getUploadedBy()).orElse(null);
         }
 
-        // D5: Parse FileReferenceId into bucket and path
         String bucket = "ged-documents";
         String path = "default-path";
         if (domain.getFileReferenceId() != null && domain.getFileReferenceId().getValue() != null) {
@@ -254,7 +441,9 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
                 .fileSizeBytes(domain.getSizeBytes())
                 .storageBucket(bucket)
                 .storagePath(path)
-                .fileReferenceId(domain.getFileReferenceId() != null ? domain.getFileReferenceId().getValue() : (bucket + "/" + path))
+                .fileReferenceId(domain.getFileReferenceId() != null
+                        ? domain.getFileReferenceId().getValue()
+                        : (bucket + "/" + path))
                 .mimeType("application/octet-stream")
                 .createdBy(uploader)
                 .build();

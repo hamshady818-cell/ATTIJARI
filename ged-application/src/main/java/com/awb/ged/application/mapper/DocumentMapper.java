@@ -17,9 +17,17 @@ public interface DocumentMapper {
 
     @Mapping(target = "isLocked", expression = "java(domain.getLock() != null)")
     @Mapping(target = "tags", source = "tags", qualifiedByName = "mapTagsToStrings")
+    @Mapping(target = "status", source = "status", qualifiedByName = "statusToString")
     DocumentResponseDto toResponseDto(Document domain);
 
     @Mapping(target = "fileReferenceId", source = "fileReferenceId", qualifiedByName = "fileReferenceToString")
+    @Mapping(target = "uploadedAt", source = "uploadedAt")
+    @Mapping(target = "uploadedBy", source = "uploadedBy")
+    @Mapping(target = "versionLabel", ignore = true)
+    @Mapping(target = "mimeType", ignore = true)
+    @Mapping(target = "changeSummary", ignore = true)
+    @Mapping(target = "majorVersion", ignore = true)
+    @Mapping(target = "uploadedByUsername", ignore = true)
     DocumentVersionResponseDto toVersionResponseDto(DocumentVersion domain);
 
     @Named("mapTagsToStrings")
@@ -31,5 +39,10 @@ public interface DocumentMapper {
     @Named("fileReferenceToString")
     default String fileReferenceToString(FileReferenceId fileReferenceId) {
         return fileReferenceId != null ? fileReferenceId.getValue() : null;
+    }
+
+    @Named("statusToString")
+    default String statusToString(Document.DocumentStatus status) {
+        return status != null ? status.name() : Document.DocumentStatus.DRAFT.name();
     }
 }

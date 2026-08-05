@@ -62,7 +62,7 @@ public class NotificationController {
                     User newUser = User.builder()
                             .id(UUID.randomUUID())
                             .keycloakSub(currentUser.getKeycloakSub())
-                            .username(currentUser.getUsername() != null ? currentUser.getUsername() : "user_" + currentUser.getKeycloakSub().substring(0, 8))
+                            .username(currentUser.getUsername() != null ? currentUser.getUsername() : "user_" + currentUser.getKeycloakSub().substring(0, Math.min(8, currentUser.getKeycloakSub().length())))
                             .email(currentUser.getEmail() != null ? currentUser.getEmail() : currentUser.getUsername() + "@awb.ma")
                             .firstName(currentUser.getUsername() != null ? currentUser.getUsername() : "User")
                             .lastName("GED")

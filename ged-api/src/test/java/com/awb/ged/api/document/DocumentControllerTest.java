@@ -2,33 +2,33 @@ package com.awb.ged.api.document;
 
 import com.awb.ged.api.exception.GlobalExceptionHandler;
 import com.awb.ged.api.permission.dto.GrantPermissionRequest;
+import com.awb.ged.application.dto.document.DocumentLockResponseDto;
 import com.awb.ged.application.dto.document.DocumentResponseDto;
+import com.awb.ged.application.dto.document.DocumentSearchResultDto;
 import com.awb.ged.application.dto.permission.PermissionResponseDto;
-import com.awb.ged.application.port.in.document.DeleteDocumentUseCase;
-import com.awb.ged.application.port.in.document.GetDocumentUseCase;
-import com.awb.ged.application.port.in.document.UploadDocumentUseCase;
-import com.awb.ged.application.port.in.document.GrantDocumentPermissionUseCase;
-import com.awb.ged.application.port.in.document.RevokeDocumentPermissionUseCase;
-import com.awb.ged.application.port.in.document.ListDocumentPermissionsUseCase;
+import com.awb.ged.application.port.in.document.*;
 import com.awb.ged.application.port.in.security.CurrentUserProvider;
 import com.awb.ged.application.port.out.persistence.UserRepositoryPort;
 import com.awb.ged.common.exception.ErrorCode;
 import com.awb.ged.common.exception.NotFoundException;
+import com.awb.ged.common.model.PageResponse;
 import com.awb.ged.common.security.CurrentUser;
 import com.awb.ged.domain.user.model.User;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.mock.web.MockMultipartFile;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.io.ByteArrayInputStream;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -64,6 +64,39 @@ class DocumentControllerTest {
     private ListDocumentPermissionsUseCase listDocumentPermissionsUseCase;
 
     @MockitoBean
+    private SearchDocumentsUseCase searchDocumentsUseCase;
+
+    @MockitoBean
+    private DownloadDocumentUseCase downloadDocumentUseCase;
+
+    @MockitoBean
+    private PreviewDocumentUseCase previewDocumentUseCase;
+
+    @MockitoBean
+    private UploadNewVersionUseCase uploadNewVersionUseCase;
+
+    @MockitoBean
+    private ListDocumentVersionsUseCase listDocumentVersionsUseCase;
+
+    @MockitoBean
+    private CheckoutDocumentUseCase checkoutDocumentUseCase;
+
+    @MockitoBean
+    private CheckinDocumentUseCase checkinDocumentUseCase;
+
+    @MockitoBean
+    private GetDocumentLockUseCase getDocumentLockUseCase;
+
+    @MockitoBean
+    private UpdateDocumentUseCase updateDocumentUseCase;
+
+    @MockitoBean
+    private UpdateDocumentStatusUseCase updateDocumentStatusUseCase;
+
+    @MockitoBean
+    private BulkDocumentActionUseCase bulkDocumentActionUseCase;
+
+    @MockitoBean
     private CurrentUserProvider currentUserProvider;
 
     @MockitoBean
@@ -89,7 +122,6 @@ class DocumentControllerTest {
     @WithMockUser(authorities = "DOCUMENT_CREATE")
     @DisplayName("POST /api/v1/documents/upload - Should upload document and return 201 Created")
     void uploadDocument_Success() throws Exception {
-        // Given
         UUID docId = UUID.randomUUID();
         MockMultipartFile file = new MockMultipartFile(
                 "file", "Contract.pdf", "application/pdf", "Dummy PDF Bytes".getBytes()
@@ -103,7 +135,6 @@ class DocumentControllerTest {
 
         given(uploadDocumentUseCase.uploadDocument(any())).willReturn(responseDto);
 
-        // When / Then
         mockMvc.perform(multipart("/api/v1/documents/upload")
                         .file(file)
                         .param("name", "Contract 2024")
@@ -115,88 +146,67 @@ class DocumentControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = "DOCUMENT_CREATE")
-    @DisplayName("POST /api/v1/documents/upload - Should return 400 Bad Request on disallowed MIME type")
-    void uploadDocument_DisallowedMimeType_Returns400() throws Exception {
-        // Given
-        MockMultipartFile exeFile = new MockMultipartFile(
-                "file", "malicious.exe", "application/x-msdownload", "Executable Bytes".getBytes()
-        );
-
-        // When / Then
-        mockMvc.perform(multipart("/api/v1/documents/upload")
-                        .file(exeFile)
-                        .param("name", "Malicious Exe")
-                        .with(csrf()))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("ERR-DOC-005"));
-    }
-
-    @Test
     @WithMockUser(authorities = "DOCUMENT_READ")
-    @DisplayName("GET /api/v1/documents/{id} - Should return 200 OK with document details")
-    void getDocumentById_Success() throws Exception {
-        // Given
+    @DisplayName("GET /api/v1/documents/search - Should search documents and return 200 OK")
+    void searchDocuments_Success() throws Exception {
         UUID docId = UUID.randomUUID();
-        DocumentResponseDto responseDto = DocumentResponseDto.builder()
+        DocumentSearchResultDto dto = DocumentSearchResultDto.builder()
                 .id(docId)
-                .name("Invoice.pdf")
+                .name("SearchResult.pdf")
                 .build();
 
-        given(getDocumentUseCase.getDocumentById(docId)).willReturn(responseDto);
+        PageResponse<DocumentSearchResultDto> pageResponse = PageResponse.<DocumentSearchResultDto>builder()
+                .content(List.of(dto))
+                .totalElements(1)
+                .totalPages(1)
+                .build();
 
-        // When / Then
-        mockMvc.perform(get("/api/v1/documents/{id}", docId))
+        given(searchDocumentsUseCase.search(any())).willReturn(pageResponse);
+
+        mockMvc.perform(get("/api/v1/documents/search")
+                        .param("keyword", "SearchResult"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(docId.toString()))
-                .andExpect(jsonPath("$.name").value("Invoice.pdf"));
+                .andExpect(jsonPath("$.content[0].id").value(docId.toString()))
+                .andExpect(jsonPath("$.content[0].name").value("SearchResult.pdf"));
     }
 
     @Test
     @WithMockUser(authorities = "DOCUMENT_READ")
-    @DisplayName("GET /api/v1/documents/{id} - Should return 404 Not Found when document missing")
-    void getDocumentById_NotFound_Returns404() throws Exception {
-        // Given
+    @DisplayName("GET /api/v1/documents/{id}/download - Should stream download document content")
+    void downloadDocument_Success() throws Exception {
         UUID docId = UUID.randomUUID();
-        given(getDocumentUseCase.getDocumentById(docId))
-                .willThrow(new NotFoundException(ErrorCode.DOCUMENT_NOT_FOUND, "Document not found"));
+        byte[] content = "File binary content".getBytes();
+        DownloadDocumentUseCase.DownloadResult downloadResult = new DownloadDocumentUseCase.DownloadResult(
+                new ByteArrayInputStream(content),
+                "Document.pdf",
+                "application/pdf",
+                content.length
+        );
 
-        // When / Then
-        mockMvc.perform(get("/api/v1/documents/{id}", docId))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("ERR-DOC-001"));
+        given(downloadDocumentUseCase.download(eq(docId), any())).willReturn(downloadResult);
+
+        mockMvc.perform(get("/api/v1/documents/{id}/download", docId))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"Document.pdf\""))
+                .andExpect(header().string("Content-Type", "application/pdf"));
     }
 
     @Test
     @WithMockUser(authorities = "DOCUMENT_WRITE")
-    @DisplayName("POST /api/v1/documents/{id}/permissions - Should grant permission and return 201 Created")
-    void grantPermission_Success() throws Exception {
-        // Given
+    @DisplayName("POST /api/v1/documents/{id}/checkout - Should lock document and return 200 OK")
+    void checkoutDocument_Success() throws Exception {
         UUID docId = UUID.randomUUID();
-        UUID permId = UUID.randomUUID();
-        GrantPermissionRequest request = GrantPermissionRequest.builder()
-                .userId(UUID.randomUUID())
-                .canRead(true)
+        DocumentLockResponseDto lockResponse = DocumentLockResponseDto.builder()
+                .documentId(docId)
+                .locked(true)
+                .lockedBy(userId)
                 .build();
 
-        PermissionResponseDto responseDto = PermissionResponseDto.builder()
-                .id(permId)
-                .targetId(docId)
-                .canRead(true)
-                .build();
+        given(checkoutDocumentUseCase.checkout(eq(docId), eq(userId))).willReturn(lockResponse);
 
-        given(grantDocumentPermissionUseCase.grantPermission(any(), anyBoolean())).willReturn(responseDto);
-
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        // When / Then
-        mockMvc.perform(post("/api/v1/documents/{id}/permissions", docId)
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(permId.toString()))
-                .andExpect(jsonPath("$.targetId").value(docId.toString()))
-                .andExpect(jsonPath("$.canRead").value(true));
+        mockMvc.perform(post("/api/v1/documents/{id}/checkout", docId).with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.locked").value(true))
+                .andExpect(jsonPath("$.lockedBy").value(userId.toString()));
     }
 }

@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Charte Couleurs GED-AWB Attijariwafa bank */
+  --color-primary: #E2231A;
+  --color-primary-hover: #C91C14;
+  --color-primary-light: #FDF2F2;
+  
+  --color-secondary: #FDB913;
+  --color-secondary-light: #FFFBEB;
+
+  --color-bg-main: #F7F7F5;
+  --color-bg-alt: #EFEFED;
+  --color-bg-surface: #FFFFFF;
+
+  --color-text-main: #2B2B2B;
+  --color-text-muted: #6B6B68;
+
+  --color-border: #E0E0DD;
+  --color-border-dark: #B5B5B0;
+
+  /* Statuts */
+  --color-status-draft: #5A5A57;
+  --color-status-published: #1E7E34;
+  --color-status-archived: #856404;
+  --color-status-trashed: #C82333;
+  --color-status-locked: #D32F2F;
+}
+
+/* Restyle scrollbars to match crisp workstation UI */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg-alt);
+}
+::-webkit-scrollbar-thumb {
+  background: #C8C8C5;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9E9E9A;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-bg-main);
+  color: var(--color-text-main);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Table & Dense Utility Classes */
+.table-dense th {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  background-color: var(--color-bg-alt);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table-dense td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table-dense tr:hover td {
+  background-color: #F0F0EE;
+}

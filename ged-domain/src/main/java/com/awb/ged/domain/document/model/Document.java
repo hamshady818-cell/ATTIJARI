@@ -23,11 +23,32 @@ import java.util.UUID;
 @AllArgsConstructor
 public class Document {
 
+    /**
+     * Document lifecycle states.
+     * DRAFT   = Only owner can see.
+     * PUBLISHED = Visible to authorized users.
+     * ARCHIVED = Read-only.
+     * TRASHED = Hidden except for restore.
+     */
+    public enum DocumentStatus {
+        DRAFT, PUBLISHED, ARCHIVED, TRASHED
+    }
+
     /** Unique identifier for the document */
     private UUID id;
 
     /** Name of the document */
     private String name;
+
+    /** Optional description */
+    private String description;
+
+    /** Lifecycle status */
+    @Builder.Default
+    private DocumentStatus status = DocumentStatus.DRAFT;
+
+    /** MIME type of the current version */
+    private String mimeType;
 
     /** Associated folder identifier (null if located at root directory) */
     private UUID folderId;
@@ -71,14 +92,13 @@ public class Document {
      * @return true if the document is locked and the lock has not expired
      */
     public boolean isCurrentlyLocked(Instant now) {
-
         return lock != null && !lock.isExpired(now);
     }
+
     /**
      * Checks if the document has been soft-deleted.
      */
     public boolean isDeleted() {
         return deletedAt != null;
     }
-
 }

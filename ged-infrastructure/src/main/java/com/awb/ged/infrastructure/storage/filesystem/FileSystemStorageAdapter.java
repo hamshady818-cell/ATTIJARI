@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -60,6 +61,29 @@ public class FileSystemStorageAdapter implements StoragePort {
             throw new StorageException(
                     ErrorCode.STORAGE_READ_ERROR,
                     "Failed to read file from filesystem: " + fileReferenceId.getValue(),
+                    e
+            );
+        }
+    }
+
+    @Override
+    public InputStream loadStream(FileReferenceId fileReferenceId) {
+        if (fileReferenceId == null || fileReferenceId.getValue() == null) {
+            throw new StorageException(ErrorCode.STORAGE_READ_ERROR, "FileReferenceId cannot be null");
+        }
+        try {
+            Path targetPath = rootPath.resolve(fileReferenceId.getValue()).normalize();
+            if (!targetPath.startsWith(rootPath) || !Files.exists(targetPath)) {
+                throw new StorageException(
+                        ErrorCode.STORAGE_READ_ERROR,
+                        "File not found on filesystem: " + fileReferenceId.getValue()
+                );
+            }
+            return Files.newInputStream(targetPath);
+        } catch (IOException e) {
+            throw new StorageException(
+                    ErrorCode.STORAGE_READ_ERROR,
+                    "Failed to stream file from filesystem: " + fileReferenceId.getValue(),
                     e
             );
         }

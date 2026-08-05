@@ -17,4 +17,7 @@ public interface FolderJpaRepository extends JpaRepository<FolderJpaEntity, UUID
     List<FolderJpaEntity> findByParentFolderIdAndDeletedAtIsNull(UUID parentId);
 
     List<FolderJpaEntity> findByParentFolderIsNullAndDeletedAtIsNull();
+
+    long countByDeletedAtIsNull();
 }
+

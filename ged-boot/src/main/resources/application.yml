@@ -1,3 +1,5 @@
+debug: true
+
 spring:
   application:
     name: ged-boot
@@ -36,8 +38,10 @@ tesseract:
 
 ged:
   storage:
-    type: filesystem
+    type: ${GED_STORAGE_TYPE:filesystem}
     base-path: ./storage-data
-
-
-
+    minio:
+      endpoint: http://localhost:9000
+      access-key: minioadmin
+      secret-key: minioadmin123
+      bucket: ged-documents

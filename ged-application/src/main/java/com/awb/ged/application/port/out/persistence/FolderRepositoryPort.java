@@ -54,4 +54,10 @@ public interface FolderRepositoryPort {
      * @param id the folder UUID
      */
     void delete(UUID id);
+
+    /**
+     * Counts total non-deleted folders.
+     */
+    long countAllFolders();
 }
+

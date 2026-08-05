@@ -1,5 +1,8 @@
 package com.awb.ged.application.port.out.persistence;
 
+import com.awb.ged.application.dto.document.DocumentSearchQuery;
+import com.awb.ged.application.dto.document.DocumentSearchResultDto;
+import com.awb.ged.common.model.PageResponse;
 import com.awb.ged.domain.document.model.Document;
 import com.awb.ged.domain.document.model.DocumentVersion;
 
@@ -17,71 +20,58 @@ import java.util.UUID;
  */
 public interface DocumentRepositoryPort {
 
-    // --- Document Operations ---
+    // --- Document CRUD Operations ---
 
-    /**
-     * Persists or updates a document aggregate root.
-     *
-     * @param document the document to save
-     * @return the saved document
-     */
     Document save(Document document);
 
-    /**
-     * Resolves a document by its ID.
-     *
-     * @param id the document UUID
-     * @return an {@link Optional} containing the document, or empty
-     */
     Optional<Document> findById(UUID id);
 
     Optional<Document> findByIdIncludingDeleted(UUID id);
 
-    /**
-     * Finds all documents in a specific folder.
-     *
-     * @param folderId the folder UUID, or null for root-level documents
-     * @return list of documents
-     */
     List<Document> findByFolderId(UUID folderId);
 
-    /**
-     * Lists all documents.
-     *
-     * @return list of all documents
-     */
     List<Document> findAll();
 
-    /**
-     * Deletes a document by ID.
-     *
-     * @param id the document UUID
-     */
     void delete(UUID id);
+
+    // --- Search ---
+
+    PageResponse<DocumentSearchResultDto> search(DocumentSearchQuery query);
 
     // --- Document Version Operations ---
 
-    /**
-     * Persists a new version for a document.
-     *
-     * @param version the version details to save
-     * @return the saved document version
-     */
     DocumentVersion saveVersion(DocumentVersion version);
 
-    /**
-     * Resolves a document version by its ID.
-     *
-     * @param versionId the version UUID
-     * @return an {@link Optional} containing the document version, or empty
-     */
     Optional<DocumentVersion> findVersionById(UUID versionId);
 
-    /**
-     * Lists all versions associated with a document, ordered chronologically.
-     *
-     * @param documentId the document UUID
-     * @return list of document versions
-     */
     List<DocumentVersion> findVersionsByDocumentId(UUID documentId);
+
+    int countVersionsByDocumentId(UUID documentId);
+
+    // --- Checkout / Lock Operations ---
+
+    void saveCheckout(UUID documentId, UUID userId);
+
+    void checkin(UUID documentId, UUID userId);
+
+    Optional<CheckoutInfo> findActiveCheckout(UUID documentId);
+
+    // --- Stats for Dashboard ---
+
+    long countAllDocuments();
+
+    long sumAllVersionSizeBytes();
+
+    List<Document> findRecentUploads(int limit);
+
+    List<Document> findRecentlyModified(int limit);
+
+    // --- Bulk Tag ---
+
+    void addTagToDocument(UUID documentId, String tagName);
+
+    /**
+     * Lightweight struct for checkout info returned to services.
+     */
+    record CheckoutInfo(UUID checkedOutBy, java.time.Instant checkedOutAt, java.time.Instant expectedReturnAt) {}
 }
