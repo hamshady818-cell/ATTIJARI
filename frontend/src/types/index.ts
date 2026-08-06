@@ -156,3 +156,34 @@ export interface SearchFilterParams {
   sortBy?: string;
   sortDirection?: 'ASC' | 'DESC';
 }
+
+export type NotificationType =
+  | 'DOCUMENT_UPLOADED'
+  | 'DOCUMENT_UPDATED'
+  | 'DOCUMENT_DELETED'
+  | 'DOCUMENT_SHARED'
+  | 'CHECKOUT_REQUESTED'
+  | 'CHECKIN_DONE'
+  | 'COMMENT_ADDED'
+  | 'SYSTEM';
+
+export interface NotificationItem {
+  id: string;
+  type: NotificationType;
+  message: string;
+  relatedDocumentId?: string;
+  relatedDocumentName?: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface TrashItemResponse {
+  id: string;
+  entityType: 'DOCUMENT' | 'FOLDER' | string;
+  entityId: string;
+  name?: string;
+  originalFolderId?: string;
+  deletedBy?: string;
+  deletedAt: string;
+  autoPurgeAt?: string;
+}

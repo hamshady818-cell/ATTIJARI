@@ -16,26 +16,46 @@ import {
   Shield,
   Upload,
   CheckCircle,
+  AlertCircle,
+  ExternalLink,
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface DocumentDetailPanelProps {
   document: DocumentItem | DocumentSearchResult | null;
   onClose: () => void;
   onRefresh: () => void;
+  onPreview?: (doc: DocumentItem | DocumentSearchResult) => void;
 }
 
 export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
   document,
   onClose,
   onRefresh,
+  onPreview,
 }) => {
   const [activeTab, setActiveTab] = useState<'info' | 'versions' | 'status'>('info');
   const [newVersionFile, setNewVersionFile] = useState<File | null>(null);
   const [changeSummary, setChangeSummary] = useState('');
   const [isUploadingVersion, setIsUploadingVersion] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [lockError, setLockError] = useState<string | null>(null);
 
-  // Query Version history using TanStack Query
+  const queryClient = useQueryClient();
+
+  // ── Polling de l'état du verrou toutes les 10 secondes
+  const { data: lockStatus } = useQuery({
+    queryKey: ['document-lock', document?.id],
+    queryFn: () => documentApi.getLockStatus(document!.id),
+    enabled: !!document?.id,
+    refetchInterval: 10_000,
+  });
+
+  // Le verrou actif combine l'état de polling (temps réel) + l'état initial du document
+  const isCurrentlyLocked = lockStatus?.locked ?? document?.isLocked ?? false;
+
+  // Query Version history
   const { data: versions = [], refetch: refetchVersions } = useQuery<DocumentVersion[]>({
     queryKey: ['document-versions', document?.id],
     queryFn: () => documentApi.listVersions(document!.id),
@@ -43,6 +63,17 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
   });
 
   if (!document) return null;
+
+  // ── Téléchargement sécurisé avec jeton Keycloak Bearer via apiClient
+  const handleSecureDownload = async (docId: string, versionId?: string) => {
+    setDownloadError(null);
+    try {
+      const filename = document.name + (versionId ? `_v${versionId.substring(0, 8)}` : '');
+      await documentApi.downloadFile(docId, filename, versionId);
+    } catch (err: any) {
+      setDownloadError(err.response?.data?.message || err.message || 'Échec du téléchargement');
+    }
+  };
 
   const handleUploadVersion = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,24 +98,31 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
   };
 
   const handleChangeStatus = async (newStatus: any) => {
+    setStatusError(null);
     try {
       await documentApi.updateStatus(document.id, newStatus);
+      await queryClient.invalidateQueries({ queryKey: ['folder-content'] });
+      await queryClient.invalidateQueries({ queryKey: ['search-documents'] });
       onRefresh();
     } catch (err: any) {
-      alert('Erreur de changement de statut: ' + (err.response?.data?.message || err.message));
+      const msg = err.response?.data?.message || err.message || 'Erreur inconnue';
+      setStatusError(msg);
     }
   };
 
   const handleToggleCheckout = async () => {
+    setLockError(null);
     try {
-      if (document.isLocked) {
+      if (isCurrentlyLocked) {
         await documentApi.checkin(document.id);
       } else {
         await documentApi.checkout(document.id);
       }
+      await queryClient.invalidateQueries({ queryKey: ['document-lock', document.id] });
       onRefresh();
     } catch (err: any) {
-      alert('Erreur de verrouillage: ' + (err.response?.data?.message || err.message));
+      const msg = err.response?.data?.message || err.message || 'Erreur inconnue';
+      setLockError(msg);
     }
   };
 
@@ -93,11 +131,25 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
     return new Date(dateStr).toLocaleString('fr-FR');
   };
 
+  const PREVIEWABLE_EXTENSIONS = /\.(pdf|docx?|xlsx?|txt|csv|json|xml|html?|png|jpe?g|gif|webp|tiff?|bmp)$/i;
+  const mimeType = document.mimeType?.toLowerCase() || '';
+  const canPreview =
+    mimeType.includes('pdf') ||
+    mimeType.includes('image') ||
+    mimeType.includes('text') ||
+    mimeType.includes('word') ||
+    mimeType.includes('excel') ||
+    mimeType.includes('sheet') ||
+    PREVIEWABLE_EXTENSIONS.test(document.name);
+
   return (
     <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-brand-surface border-l border-brand-border shadow-popover flex flex-col animate-in slide-in-from-right duration-200">
+      {/* Top Accent Bar */}
+      <div className="h-1 bg-brand-primary w-full shrink-0" />
+
       {/* Panel Header */}
-      <div className="p-4 bg-brand-alt border-b border-brand-border flex items-center justify-between">
-        <div className="flex items-center gap-2 truncate">
+      <div className="p-4 bg-brand-alt/50 border-b border-brand-border flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2.5 truncate">
           <FileText className="w-4 h-4 text-brand-primary shrink-0" />
           <h3 className="font-bold text-xs uppercase tracking-wider text-brand-text truncate">
             {document.name}
@@ -105,32 +157,32 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
         </div>
         <button
           onClick={onClose}
-          className="p-1 text-brand-muted hover:text-brand-text hover:bg-brand-border rounded-sm"
+          className="p-1 text-brand-muted hover:text-brand-text hover:bg-brand-border/60 rounded-md transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-brand-border bg-brand-bg text-xs font-medium">
+      <div className="flex border-b border-brand-border bg-brand-bg text-xs font-semibold p-1 gap-1 shrink-0">
         <button
           onClick={() => setActiveTab('info')}
-          className={`flex-1 py-2 px-3 flex items-center justify-center gap-1.5 border-b-2 transition-colors ${
+          className={`flex-1 py-2 px-2.5 flex items-center justify-center gap-1.5 rounded-md transition-all duration-150 ${
             activeTab === 'info'
-              ? 'border-brand-primary text-brand-primary bg-white font-bold'
-              : 'border-transparent text-brand-muted hover:text-brand-text'
+              ? 'bg-brand-surface text-brand-primary shadow-xs font-bold'
+              : 'text-brand-muted hover:text-brand-text hover:bg-brand-surface/50'
           }`}
         >
           <Info className="w-3.5 h-3.5" />
-          Fiche Métadonnées
+          Fiche
         </button>
 
         <button
           onClick={() => setActiveTab('versions')}
-          className={`flex-1 py-2 px-3 flex items-center justify-center gap-1.5 border-b-2 transition-colors ${
+          className={`flex-1 py-2 px-2.5 flex items-center justify-center gap-1.5 rounded-md transition-all duration-150 ${
             activeTab === 'versions'
-              ? 'border-brand-primary text-brand-primary bg-white font-bold'
-              : 'border-transparent text-brand-muted hover:text-brand-text'
+              ? 'bg-brand-surface text-brand-primary shadow-xs font-bold'
+              : 'text-brand-muted hover:text-brand-text hover:bg-brand-surface/50'
           }`}
         >
           <History className="w-3.5 h-3.5" />
@@ -139,10 +191,10 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
 
         <button
           onClick={() => setActiveTab('status')}
-          className={`flex-1 py-2 px-3 flex items-center justify-center gap-1.5 border-b-2 transition-colors ${
+          className={`flex-1 py-2 px-2.5 flex items-center justify-center gap-1.5 rounded-md transition-all duration-150 ${
             activeTab === 'status'
-              ? 'border-brand-primary text-brand-primary bg-white font-bold'
-              : 'border-transparent text-brand-muted hover:text-brand-text'
+              ? 'bg-brand-surface text-brand-primary shadow-xs font-bold'
+              : 'text-brand-muted hover:text-brand-text hover:bg-brand-surface/50'
           }`}
         >
           <Shield className="w-3.5 h-3.5" />
@@ -155,32 +207,62 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
         {activeTab === 'info' && (
           <div className="space-y-4">
             {/* Quick Actions Bar */}
-            <div className="flex items-center gap-2 p-2 bg-brand-alt border border-brand-border">
-              <a
-                href={documentApi.previewUrl(document.id)}
-                target="_blank"
-                rel="noreferrer"
-                className="flex-1"
-              >
-                <Button variant="outline" size="sm" icon={<Eye className="w-3.5 h-3.5" />} className="w-full">
+            <div className="flex items-center gap-2 p-2.5 bg-brand-alt/50 border border-brand-border rounded-lg shadow-xs">
+              {canPreview ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<Eye className="w-3.5 h-3.5" />}
+                  className="w-full flex-1"
+                  onClick={() => {
+                    if (onPreview) {
+                      onPreview(document);
+                    } else {
+                      window.open(documentApi.previewUrl(document.id), '_blank');
+                    }
+                  }}
+                >
                   Aperçu
                 </Button>
-              </a>
-
-              <a href={documentApi.downloadUrl(document.id)} download className="flex-1">
-                <Button variant="primary" size="sm" icon={<Download className="w-3.5 h-3.5" />} className="w-full">
-                  Télécharger
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<ExternalLink className="w-3.5 h-3.5" />}
+                  className="w-full flex-1 opacity-50 cursor-not-allowed"
+                  title={`Aperçu non disponible pour le format ${mimeType || 'inconnu'}`}
+                  disabled
+                >
+                  Aperçu
                 </Button>
-              </a>
+              )}
+
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<Download className="w-3.5 h-3.5" />}
+                className="w-full flex-1"
+                onClick={() => handleSecureDownload(document.id)}
+              >
+                Télécharger
+              </Button>
             </div>
 
+            {/* Message d'erreur téléchargement */}
+            {downloadError && (
+              <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-md">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{downloadError}</span>
+              </div>
+            )}
+
             {/* General Properties */}
-            <div className="border border-brand-border p-3 space-y-2 bg-white">
-              <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted border-b border-brand-border pb-1">
+            <div className="border border-brand-border p-3.5 space-y-2.5 bg-brand-surface rounded-lg shadow-card">
+              <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted border-b border-brand-border pb-1.5">
                 Propriétés Générales
               </h4>
 
-              <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
                   <span className="text-brand-muted block text-[10px] uppercase font-semibold">Statut</span>
                   <Badge status={document.status} />
@@ -204,8 +286,8 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
             </div>
 
             {/* Description */}
-            <div className="border border-brand-border p-3 bg-white">
-              <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted border-b border-brand-border pb-1 mb-2">
+            <div className="border border-brand-border p-3.5 bg-brand-surface rounded-lg shadow-card">
+              <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted border-b border-brand-border pb-1.5 mb-2">
                 Description & Notes
               </h4>
               <p className="text-brand-text italic">
@@ -214,11 +296,11 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
             </div>
 
             {/* Tags */}
-            <div className="border border-brand-border p-3 bg-white">
-              <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted border-b border-brand-border pb-1 mb-2">
+            <div className="border border-brand-border p-3.5 bg-brand-surface rounded-lg shadow-card">
+              <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted border-b border-brand-border pb-1.5 mb-2">
                 Étiquettes (Tags)
               </h4>
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1.5">
                 {document.tags && document.tags.length > 0 ? (
                   document.tags.map((t) => <Badge key={t} variant="tag">{t}</Badge>)
                 ) : (
@@ -232,21 +314,21 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
         {activeTab === 'versions' && (
           <div className="space-y-4">
             {/* Upload New Version Form */}
-            <form onSubmit={handleUploadVersion} className="border border-brand-border p-3 bg-brand-alt space-y-2">
+            <form onSubmit={handleUploadVersion} className="border border-brand-border p-3.5 bg-brand-alt/50 rounded-lg space-y-2.5">
               <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-text">
                 Verser une nouvelle version
               </h4>
               <input
                 type="file"
                 onChange={(e) => setNewVersionFile(e.target.files?.[0] || null)}
-                className="block w-full text-xs text-brand-text file:mr-2 file:py-1 file:px-2 file:border file:border-brand-border file:bg-white file:text-xs hover:file:bg-brand-alt"
+                className="block w-full text-xs text-brand-text file:mr-2 file:py-1 file:px-2.5 file:border file:border-brand-border file:bg-white file:rounded-md file:text-xs hover:file:bg-brand-alt cursor-pointer"
               />
               <input
                 type="text"
                 placeholder="Note de version (ex: révision clause 4)..."
                 value={changeSummary}
                 onChange={(e) => setChangeSummary(e.target.value)}
-                className="w-full bg-white border border-brand-border px-2 py-1 text-xs"
+                className="w-full bg-brand-surface border border-brand-border rounded-md px-3 py-1.5 text-xs focus:outline-none focus:border-brand-primary"
               />
               <Button
                 type="submit"
@@ -261,25 +343,25 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
             </form>
 
             {/* Version List */}
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted">
                 Historique des versions
               </h4>
               {versions.length === 0 ? (
-                <div className="p-4 text-center text-brand-muted italic border border-brand-border bg-white">
+                <div className="p-4 text-center text-brand-muted italic border border-brand-border bg-brand-surface rounded-lg">
                   Une seule version initiale (v1)
                 </div>
               ) : (
                 versions.map((ver) => (
                   <div
                     key={ver.id}
-                    className="border border-brand-border p-2.5 bg-white flex items-center justify-between"
+                    className="border border-brand-border p-3 bg-brand-surface rounded-lg shadow-card flex items-center justify-between"
                   >
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-mono font-bold text-xs text-brand-primary">v{ver.versionNumber}</span>
                         {ver.id === document.activeVersionId && (
-                          <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-1">
+                          <span className="text-[9px] bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold px-1.5 py-0.5 rounded-md">
                             ACTIF
                           </span>
                         )}
@@ -287,19 +369,18 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
                       <div className="text-[11px] text-brand-muted font-mono mt-0.5">
                         SHA256: {ver.hash ? ver.hash.substring(0, 16) + '...' : '-'}
                       </div>
-                      <div className="text-[10px] text-brand-muted">
+                      <div className="text-[10px] text-brand-muted mt-0.5">
                         Versé le {formatDate(ver.uploadedAt)}
                       </div>
                     </div>
 
-                    <a
-                      href={documentApi.downloadUrl(document.id, ver.id)}
-                      download
-                      className="p-1.5 border border-brand-border hover:border-brand-primary text-brand-muted hover:text-brand-primary"
+                    <button
+                      onClick={() => handleSecureDownload(document.id, ver.id)}
+                      className="p-1.5 border border-brand-border hover:border-brand-primary text-brand-muted hover:text-brand-primary rounded-md transition-colors"
                       title="Télécharger cette version"
                     >
                       <Download className="w-3.5 h-3.5" />
-                    </a>
+                    </button>
                   </div>
                 ))
               )}
@@ -310,38 +391,56 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
         {activeTab === 'status' && (
           <div className="space-y-4">
             {/* Lock Control */}
-            <div className="border border-brand-border p-3 bg-white space-y-2">
+            <div className="border border-brand-border p-3.5 bg-brand-surface rounded-lg shadow-card space-y-2.5">
               <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted">
                 Contrôle d'accès & Verrou (Check-out)
               </h4>
-              <div className="flex items-center justify-between">
+
+              <div className="flex items-center justify-between gap-3">
                 <div>
                   <span className="font-semibold block">
-                    {document.isLocked ? 'Document actuellement verrouillé' : 'Document libre en édition'}
+                    {isCurrentlyLocked ? 'Document actuellement verrouillé' : 'Document libre en édition'}
                   </span>
-                  <span className="text-[11px] text-brand-muted">
-                    {document.isLocked
+                  <span className="text-[11px] text-brand-muted block mt-0.5">
+                    {isCurrentlyLocked
                       ? 'Un seul agent peut modifier ou verser une version à la fois.'
                       : 'Vous pouvez poser un verrou pour empêcher les modifications concurrentes.'}
                   </span>
+                  {lockStatus?.lockedByUsername && isCurrentlyLocked && (
+                    <span className="text-[11px] text-amber-700 font-medium block mt-1">
+                      Verrouillé par : {lockStatus.lockedByUsername}
+                    </span>
+                  )}
                 </div>
                 <Button
-                  variant={document.isLocked ? 'danger' : 'outline'}
+                  variant={isCurrentlyLocked ? 'danger' : 'outline'}
                   size="sm"
                   icon={<Lock className="w-3.5 h-3.5" />}
                   onClick={handleToggleCheckout}
+                  className="shrink-0"
                 >
-                  {document.isLocked ? 'Check-in' : 'Check-out'}
+                  {isCurrentlyLocked ? 'Check-in' : 'Check-out'}
                 </Button>
               </div>
+
+              {/* Erreur verrou */}
+              {lockError && (
+                <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-md">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{lockError}</span>
+                </div>
+              )}
             </div>
 
             {/* Lifecycle Status Change */}
-            <div className="border border-brand-border p-3 bg-white space-y-2">
+            <div className="border border-brand-border p-3.5 bg-brand-surface rounded-lg shadow-card space-y-2.5">
               <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted">
                 Changer le statut du document
               </h4>
-              <div className="grid grid-cols-2 gap-2">
+              <p className="text-[11px] text-brand-muted">
+                Statut actuel : <Badge status={document.status} />
+              </p>
+              <div className="grid grid-cols-2 gap-2 pt-1">
                 <Button
                   variant={document.status === 'DRAFT' ? 'primary' : 'outline'}
                   size="sm"
@@ -371,6 +470,14 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
                   CORBEILLE
                 </Button>
               </div>
+
+              {/* Erreur statut */}
+              {statusError && (
+                <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-md">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{statusError}</span>
+                </div>
+              )}
             </div>
           </div>
         )}

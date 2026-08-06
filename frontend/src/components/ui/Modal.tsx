@@ -34,23 +34,26 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
       <div
-        className={`w-full ${widthClasses[maxWidth]} bg-brand-surface border border-brand-border rounded-sm shadow-popover overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-100`}
+        className={`w-full ${widthClasses[maxWidth]} bg-brand-surface border border-brand-border rounded-lg shadow-modal overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150`}
       >
+        {/* Top Attijari Accent Bar */}
+        <div className="h-1 bg-brand-primary w-full shrink-0" />
+
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 bg-brand-alt border-b border-brand-border">
+        <div className="flex items-center justify-between px-5 py-3.5 bg-brand-alt/50 border-b border-brand-border shrink-0">
           <h3 className="text-xs font-bold uppercase tracking-wider text-brand-text">{title}</h3>
           <button
             onClick={onClose}
-            className="p-1 text-brand-muted hover:text-brand-text hover:bg-brand-border rounded-sm transition-colors"
+            className="p-1 text-brand-muted hover:text-brand-text hover:bg-brand-border/60 rounded-md transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-4 overflow-y-auto">{children}</div>
+        <div className="p-5 overflow-y-auto flex-1">{children}</div>
       </div>
     </div>
   );

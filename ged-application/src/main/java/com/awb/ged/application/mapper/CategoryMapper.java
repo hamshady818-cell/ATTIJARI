@@ -4,7 +4,7 @@ import com.awb.ged.application.dto.category.CategoryResponseDto;
 import com.awb.ged.domain.category.model.Category;
 import org.mapstruct.Mapper;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface CategoryMapper {
     CategoryResponseDto toResponseDto(Category category);
 }

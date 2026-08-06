@@ -20,16 +20,16 @@ export const BulkActionToolbar: React.FC<BulkActionToolbarProps> = ({
   if (selectedCount === 0) return null;
 
   return (
-    <div className="flex items-center justify-between px-4 py-2 bg-brand-text text-white border border-brand-text mb-3 animate-in slide-in-from-top-2 duration-150">
+    <div className="flex items-center justify-between px-4 py-2.5 bg-brand-text text-white border border-brand-text rounded-lg shadow-popover mb-4 animate-in slide-in-from-top-2 duration-150">
       <div className="flex items-center gap-3">
-        <span className="font-mono text-xs font-bold bg-brand-primary px-2 py-0.5">
+        <span className="font-mono text-xs font-bold bg-brand-primary text-white px-2.5 py-0.5 rounded-md">
           {selectedCount} sélectionné{selectedCount > 1 ? 's' : ''}
         </span>
         <button
           onClick={onClearSelection}
-          className="text-xs text-gray-300 hover:text-white flex items-center gap-1 underline"
+          className="text-xs text-brand-border hover:text-white flex items-center gap-1 transition-colors"
         >
-          <X className="w-3 h-3" />
+          <X className="w-3.5 h-3.5" />
           Désélectionner
         </button>
       </div>

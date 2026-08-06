@@ -27,6 +27,8 @@ interface DocumentTableProps {
   onDeleteDocument: (id: string) => void;
   onCheckoutDocument: (id: string) => void;
   onCheckinDocument: (id: string) => void;
+  onPreviewDocument?: (doc: DocumentItem | DocumentSearchResult) => void;
+  onMoveSingleDocument?: (doc: DocumentItem | DocumentSearchResult) => void;
   onSort?: (field: string) => void;
   sortBy?: string;
   sortDirection?: 'ASC' | 'DESC';
@@ -41,6 +43,8 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   onDeleteDocument,
   onCheckoutDocument,
   onCheckinDocument,
+  onPreviewDocument,
+  onMoveSingleDocument,
   onSort,
   sortBy,
   sortDirection,
@@ -49,12 +53,12 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
 
   const getMimeIcon = (mimeType?: string) => {
     if (!mimeType) return <File className="w-4 h-4 text-brand-muted shrink-0" />;
-    if (mimeType.includes('pdf')) return <FileText className="w-4 h-4 text-red-700 shrink-0" />;
-    if (mimeType.includes('image')) return <ImageIcon className="w-4 h-4 text-amber-600 shrink-0" />;
+    if (mimeType.includes('pdf')) return <FileText className="w-4 h-4 text-brand-primary shrink-0" />;
+    if (mimeType.includes('image')) return <ImageIcon className="w-4 h-4 text-brand-secondary shrink-0" />;
     if (mimeType.includes('sheet') || mimeType.includes('excel'))
       return <FileSpreadsheet className="w-4 h-4 text-emerald-700 shrink-0" />;
     if (mimeType.includes('word') || mimeType.includes('document'))
-      return <FileText className="w-4 h-4 text-blue-700 shrink-0" />;
+      return <FileText className="w-4 h-4 text-brand-primary shrink-0" />;
     return <FileCode className="w-4 h-4 text-brand-muted shrink-0" />;
   };
 
@@ -70,20 +74,20 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
   };
 
   return (
-    <div className="w-full overflow-x-auto border border-brand-border bg-white rounded-none">
+    <div className="w-full overflow-x-auto border border-brand-border bg-brand-surface rounded-lg shadow-card">
       <table className="w-full text-left border-collapse table-dense">
         <thead>
           <tr className="select-none">
-            <th className="w-8 text-center">
+            <th className="w-9 text-center">
               <input
                 type="checkbox"
                 checked={isAllSelected}
                 onChange={onToggleSelectAll}
-                className="rounded-none border-brand-border text-brand-primary focus:ring-brand-primary cursor-pointer"
+                className="rounded-sm border-brand-border text-brand-primary focus:ring-brand-primary cursor-pointer"
               />
             </th>
             <th className="cursor-pointer" onClick={() => onSort?.('name')}>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <span>Document</span>
                 <ArrowUpDown className="w-3 h-3 text-brand-muted" />
               </div>
@@ -92,7 +96,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
             <th>Dossier / Emplacement</th>
             <th>Propriétaire</th>
             <th className="cursor-pointer" onClick={() => onSort?.('updatedAt')}>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <span>Dernière modification</span>
                 <ArrowUpDown className="w-3 h-3 text-brand-muted" />
               </div>
@@ -116,8 +120,14 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
               return (
                 <tr
                   key={doc.id}
-                  className={`group transition-colors ${
-                    isSelected ? 'bg-brand-primary-light/60' : ''
+                  draggable={true}
+                  onDragStart={(e) => {
+                    const idsToMove = selectedIds.includes(doc.id) && selectedIds.length > 1 ? selectedIds : [doc.id];
+                    e.dataTransfer.setData('text/plain', JSON.stringify({ documentIds: idsToMove }));
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  className={`group transition-colors cursor-grab active:cursor-grabbing ${
+                    isSelected ? 'bg-brand-primary-light/60 border-l-3 border-l-brand-primary font-medium' : ''
                   }`}
                 >
                   {/* Checkbox */}
@@ -126,13 +136,13 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => onToggleSelect(doc.id)}
-                      className="rounded-none border-brand-border text-brand-primary focus:ring-brand-primary cursor-pointer"
+                      className="rounded-sm border-brand-border text-brand-primary focus:ring-brand-primary cursor-pointer"
                     />
                   </td>
 
                   {/* Document Name + Icon + Lock indicator */}
                   <td>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       {getMimeIcon(doc.mimeType)}
                       <button
                         onClick={() => onSelectDocument(doc)}
@@ -143,7 +153,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
 
                       {doc.isLocked && (
                         <span
-                          className="inline-flex items-center gap-1 px-1 py-0.2 text-[9px] font-bold bg-red-100 text-red-800 border border-red-300"
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold bg-red-50 text-brand-locked border border-red-200 rounded-md"
                           title="Document verrouillé par check-out"
                         >
                           <Lock className="w-2.5 h-2.5" />
@@ -162,7 +172,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                   <td className="text-xs text-brand-muted truncate max-w-[150px]">
                     {searchDoc.folderName ? (
                       <span className="inline-flex items-center gap-1 font-mono text-[11px]">
-                        <FolderInput className="w-3 h-3 shrink-0 text-brand-muted" />
+                        <FolderInput className="w-3.5 h-3.5 shrink-0 text-brand-muted" />
                         {searchDoc.folderName}
                       </span>
                     ) : (
@@ -172,7 +182,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
 
                   {/* Owner */}
                   <td className="text-xs text-brand-text font-mono">
-                    {searchDoc.ownerUsername || 'Agent AWS'}
+                    {searchDoc.ownerUsername || 'Agent GED'}
                   </td>
 
                   {/* Updated At */}
@@ -187,7 +197,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                         doc.tags.map((tag) => (
                           <span
                             key={tag}
-                            className="inline-flex items-center gap-0.5 px-1 py-0.2 text-[9px] font-mono bg-brand-alt border border-brand-border text-brand-text"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono bg-brand-alt border border-brand-border text-brand-text rounded-md"
                           >
                             <Tag className="w-2.5 h-2.5 text-brand-muted" />
                             {tag}
@@ -203,31 +213,56 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                   <td className="text-right whitespace-nowrap">
                     <div className="inline-flex items-center gap-1 opacity-90 group-hover:opacity-100">
                       {/* Preview Button */}
-                      <a
-                        href={documentApi.previewUrl(doc.id)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-1 text-brand-muted hover:text-brand-text hover:bg-brand-alt border border-transparent hover:border-brand-border rounded-none"
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onPreviewDocument) {
+                            onPreviewDocument(doc);
+                          } else {
+                            window.open(documentApi.previewUrl(doc.id), '_blank');
+                          }
+                        }}
+                        className="p-1.5 text-brand-muted hover:text-brand-text hover:bg-brand-alt border border-transparent hover:border-brand-border rounded-md transition-colors"
                         title="Aperçu rapide"
                       >
                         <Eye className="w-3.5 h-3.5" />
-                      </a>
+                      </button>
 
                       {/* Download Button */}
-                      <a
-                        href={documentApi.downloadUrl(doc.id)}
-                        download
-                        className="p-1 text-brand-muted hover:text-brand-primary hover:bg-brand-primary-light border border-transparent hover:border-brand-primary/30 rounded-none"
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            await documentApi.downloadFile(doc.id, doc.name);
+                          } catch (err: any) {
+                            alert('Erreur lors du téléchargement: ' + (err.response?.data?.message || err.message));
+                          }
+                        }}
+                        className="p-1.5 text-brand-muted hover:text-brand-primary hover:bg-brand-primary-light border border-transparent hover:border-brand-primary/30 rounded-md transition-colors"
                         title="Télécharger"
                       >
                         <Download className="w-3.5 h-3.5" />
-                      </a>
+                      </button>
+
+                      {/* Move Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onMoveSingleDocument) {
+                            onMoveSingleDocument(doc);
+                          }
+                        }}
+                        className="p-1.5 text-brand-muted hover:text-brand-primary hover:bg-brand-primary-light border border-transparent hover:border-brand-primary/30 rounded-md transition-colors"
+                        title="Déplacer vers..."
+                      >
+                        <FolderInput className="w-3.5 h-3.5" />
+                      </button>
 
                       {/* Checkout / Lock toggle */}
                       {doc.isLocked ? (
                         <button
                           onClick={() => onCheckinDocument(doc.id)}
-                          className="p-1 text-red-700 hover:bg-red-50 border border-transparent hover:border-red-300 rounded-none"
+                          className="p-1.5 text-brand-primary hover:bg-brand-primary-light border border-transparent hover:border-brand-primary/30 rounded-md transition-colors"
                           title="Déverrouiller (Check-in)"
                         >
                           <Lock className="w-3.5 h-3.5" />
@@ -235,7 +270,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                       ) : (
                         <button
                           onClick={() => onCheckoutDocument(doc.id)}
-                          className="p-1 text-brand-muted hover:text-brand-text hover:bg-brand-alt border border-transparent hover:border-brand-border rounded-none"
+                          className="p-1.5 text-brand-muted hover:text-brand-text hover:bg-brand-alt border border-transparent hover:border-brand-border rounded-md transition-colors"
                           title="Verrouiller (Check-out)"
                         >
                           <Lock className="w-3.5 h-3.5 opacity-40" />
@@ -245,7 +280,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                       {/* Delete */}
                       <button
                         onClick={() => onDeleteDocument(doc.id)}
-                        className="p-1 text-brand-muted hover:text-red-700 hover:bg-red-50 border border-transparent hover:border-red-200 rounded-none"
+                        className="p-1.5 text-brand-muted hover:text-brand-primary hover:bg-brand-primary-light border border-transparent hover:border-brand-primary/30 rounded-md transition-colors"
                         title="Mettre en corbeille"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -254,7 +289,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                       {/* More Details */}
                       <button
                         onClick={() => onSelectDocument(doc)}
-                        className="p-1 text-brand-muted hover:text-brand-text hover:bg-brand-alt border border-transparent hover:border-brand-border rounded-none"
+                        className="p-1.5 text-brand-muted hover:text-brand-text hover:bg-brand-alt border border-transparent hover:border-brand-border rounded-md transition-colors"
                         title="Détails & Versions"
                       >
                         <MoreVertical className="w-3.5 h-3.5" />

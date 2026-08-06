@@ -17,7 +17,12 @@ export const folderApi = {
     return res.data;
   },
 
-  deleteFolder: async (folderId: string): Promise<void> => {
-    await apiClient.delete(`/folders/${folderId}`);
+  deleteFolder: async (folderId: string, force = false): Promise<void> => {
+    await apiClient.delete(`/folders/${folderId}`, { params: { force } });
+  },
+
+  getAllFolders: async (): Promise<FolderItem[]> => {
+    const res = await apiClient.get<FolderItem[]>('/folders');
+    return res.data;
   },
 };

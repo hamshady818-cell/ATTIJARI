@@ -50,8 +50,12 @@ public class UpdateDocumentStatusService implements UpdateDocumentStatusUseCase 
         // Validate transition
         validateTransition(document.getStatus(), targetStatus);
 
+        boolean isMovingToTrash = targetStatus == Document.DocumentStatus.TRASHED;
+
         Document updated = document.toBuilder()
                 .status(targetStatus)
+                .deletedAt(isMovingToTrash ? (document.getDeletedAt() != null ? document.getDeletedAt() : Instant.now()) : null)
+                .deletedBy(isMovingToTrash ? (document.getDeletedBy() != null ? document.getDeletedBy() : currentUserId) : null)
                 .updatedAt(Instant.now())
                 .build();
 

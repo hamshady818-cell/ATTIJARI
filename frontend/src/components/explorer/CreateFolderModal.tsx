@@ -26,6 +26,13 @@ export const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
   const [parentFolderId, setParentFolderId] = useState(defaultParentId || '');
   const [isCreating, setIsCreating] = useState(false);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      setParentFolderId(defaultParentId || '');
+      setFolderName('');
+    }
+  }, [isOpen, defaultParentId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!folderName.trim()) return;
@@ -43,10 +50,29 @@ export const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
     }
   };
 
-  const folderOptions = [
-    { value: '', label: 'Racine (Aucun dossier parent)' },
-    ...folders.map((f) => ({ value: f.id, label: f.name })),
-  ];
+  const buildFolderOptions = (items: FolderItem[]) => {
+    const map = new Map<string, FolderItem>();
+    items.forEach((f) => map.set(f.id, f));
+
+    const getFullPath = (f: FolderItem): string => {
+      const parts = [f.name];
+      let curr = f;
+      while (curr.parentId && map.has(curr.parentId)) {
+        curr = map.get(curr.parentId)!;
+        parts.unshift(curr.name);
+      }
+      return parts.join(' / ');
+    };
+
+    return [
+      { value: '', label: 'Racine (Aucun dossier parent)' },
+      ...items
+        .map((f) => ({ value: f.id, label: getFullPath(f) }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    ];
+  };
+
+  const folderOptions = buildFolderOptions(folders);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Créer un nouveau répertoire" maxWidth="sm">

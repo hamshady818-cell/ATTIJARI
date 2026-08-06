@@ -1,5 +1,5 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { documentApi } from '../api/documentApi';
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
@@ -7,6 +7,8 @@ import { Button } from '../components/ui/Button';
 import { Trash2, RotateCcw, FileText } from 'lucide-react';
 
 export const TrashPage: React.FC = () => {
+  const queryClient = useQueryClient();
+
   const { data: trashedDocs = [], refetch } = useQuery({
     queryKey: ['trashed-documents'],
     queryFn: async () => {
@@ -18,6 +20,9 @@ export const TrashPage: React.FC = () => {
   const handleRestore = async (id: string) => {
     try {
       await documentApi.updateStatus(id, 'DRAFT');
+      await queryClient.invalidateQueries({ queryKey: ['trashed-documents'] });
+      await queryClient.invalidateQueries({ queryKey: ['folder-content'] });
+      await queryClient.invalidateQueries({ queryKey: ['search-documents'] });
       refetch();
     } catch (err: any) {
       alert('Erreur lors de la restauration: ' + (err.response?.data?.message || err.message));
@@ -29,19 +34,19 @@ export const TrashPage: React.FC = () => {
       <Header />
 
       <main className="flex-1 overflow-y-auto p-6 max-w-7xl mx-auto w-full space-y-6">
-        <div className="flex items-center justify-between border-b border-brand-border pb-3">
+        <div className="flex items-center justify-between bg-brand-surface p-4 border border-brand-border rounded-lg shadow-card">
           <div>
-            <h1 className="text-base font-bold uppercase tracking-wider text-brand-text flex items-center gap-2">
-              <Trash2 className="w-5 h-5 text-red-700" />
+            <h1 className="text-base font-bold uppercase tracking-wider text-brand-text flex items-center gap-2.5">
+              <Trash2 className="w-5 h-5 text-brand-primary" />
               Corbeille des Documents
             </h1>
-            <p className="text-xs text-brand-muted">
+            <p className="text-xs text-brand-muted mt-0.5">
               Documents supprimés temporairement. Vous pouvez les restaurer vers l'état Brouillon.
             </p>
           </div>
         </div>
 
-        <div className="bg-brand-surface border border-brand-border overflow-hidden">
+        <div className="bg-brand-surface border border-brand-border rounded-lg shadow-card overflow-hidden">
           <table className="w-full text-left table-dense">
             <thead>
               <tr>
@@ -52,7 +57,7 @@ export const TrashPage: React.FC = () => {
                 <th className="text-right">Restauration</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-brand-border">
+            <tbody className="divide-y divide-brand-border font-sans">
               {trashedDocs.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="text-center py-12 text-brand-muted italic">
@@ -63,15 +68,15 @@ export const TrashPage: React.FC = () => {
                 trashedDocs.map((doc) => (
                   <tr key={doc.id}>
                     <td>
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-red-700 shrink-0" />
+                      <div className="flex items-center gap-2.5">
+                        <FileText className="w-4 h-4 text-brand-primary shrink-0" />
                         <span className="font-medium text-xs text-brand-text">{doc.name}</span>
                       </div>
                     </td>
                     <td>
                       <Badge status={doc.status} />
                     </td>
-                    <td className="font-mono text-xs text-brand-muted">{doc.ownerUsername || 'Agent AWS'}</td>
+                    <td className="font-mono text-xs text-brand-muted">{doc.ownerUsername || 'Agent GED'}</td>
                     <td className="font-mono text-xs text-brand-muted">
                       {new Date(doc.updatedAt).toLocaleString('fr-FR')}
                     </td>

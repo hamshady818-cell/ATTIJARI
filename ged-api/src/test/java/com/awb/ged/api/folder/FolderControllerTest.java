@@ -8,6 +8,7 @@ import com.awb.ged.application.dto.folder.FolderResponseDto;
 import com.awb.ged.application.dto.permission.PermissionResponseDto;
 import com.awb.ged.application.port.in.folder.CreateFolderUseCase;
 import com.awb.ged.application.port.in.folder.DeleteFolderUseCase;
+import com.awb.ged.application.port.in.folder.GetAllFoldersUseCase;
 import com.awb.ged.application.port.in.folder.GetFolderContentUseCase;
 import com.awb.ged.application.port.in.folder.GrantFolderPermissionUseCase;
 import com.awb.ged.application.port.in.folder.RevokeFolderPermissionUseCase;
@@ -66,6 +67,9 @@ class FolderControllerTest {
 
     @MockitoBean
     private GetFolderContentUseCase getFolderContentUseCase;
+
+    @MockitoBean
+    private GetAllFoldersUseCase getAllFoldersUseCase;
 
     @MockitoBean
     private DeleteFolderUseCase deleteFolderUseCase;
@@ -208,7 +212,7 @@ class FolderControllerTest {
     void deleteFolder_Success() throws Exception {
         // Given
         UUID folderId = UUID.randomUUID();
-        doNothing().when(deleteFolderUseCase).deleteFolder(folderId, userId);
+        doNothing().when(deleteFolderUseCase).deleteFolder(eq(folderId), eq(userId), anyBoolean());
 
         // When / Then
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/v1/folders/{id}", folderId)
@@ -223,7 +227,7 @@ class FolderControllerTest {
         // Given
         UUID folderId = UUID.randomUUID();
         doThrow(new NotFoundException(ErrorCode.FOLDER_NOT_FOUND, "Folder not found"))
-                .when(deleteFolderUseCase).deleteFolder(folderId, userId);
+                .when(deleteFolderUseCase).deleteFolder(eq(folderId), eq(userId), anyBoolean());
 
         // When / Then
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/v1/folders/{id}", folderId)
@@ -239,7 +243,7 @@ class FolderControllerTest {
         // Given
         UUID folderId = UUID.randomUUID();
         doThrow(new ConflictException(ErrorCode.FOLDER_NOT_EMPTY, "Folder is not empty"))
-                .when(deleteFolderUseCase).deleteFolder(folderId, userId);
+                .when(deleteFolderUseCase).deleteFolder(eq(folderId), eq(userId), anyBoolean());
 
         // When / Then
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/v1/folders/{id}", folderId)

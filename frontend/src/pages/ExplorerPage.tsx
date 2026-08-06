@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { folderApi } from '../api/folderApi';
 import { documentApi } from '../api/documentApi';
 import { refApi } from '../api/refApi';
@@ -9,8 +9,11 @@ import { DocumentTable } from '../components/explorer/DocumentTable';
 import { DocumentFilterDrawer } from '../components/explorer/DocumentFilterDrawer';
 import { BulkActionToolbar } from '../components/explorer/BulkActionToolbar';
 import { DocumentDetailPanel } from '../components/explorer/DocumentDetailPanel';
+import { DocumentPreviewModal } from '../components/explorer/DocumentPreviewModal';
+import { MoveDocumentModal } from '../components/explorer/MoveDocumentModal';
 import { UploadModal } from '../components/explorer/UploadModal';
 import { CreateFolderModal } from '../components/explorer/CreateFolderModal';
+import { DeleteFolderModal } from '../components/explorer/DeleteFolderModal';
 import { Button } from '../components/ui/Button';
 import {
   DocumentItem,
@@ -26,12 +29,14 @@ import {
   FolderOpen,
   ChevronRight,
   Home,
+  Trash2,
 } from 'lucide-react';
 
 export const ExplorerPage: React.FC = () => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>();
   const [activeFilterType, setActiveFilterType] = useState<'all' | 'folder' | 'drafts'>('folder');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  const queryClient = useQueryClient();
 
   // Search & Filter State
   const [filters, setFilters] = useState<SearchFilterParams>({
@@ -48,8 +53,21 @@ export const ExplorerPage: React.FC = () => {
   // Table selections & Slide-over modal states
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
   const [activeDocument, setActiveDocument] = useState<DocumentItem | DocumentSearchResult | null>(null);
+  const [previewDocument, setPreviewDocument] = useState<DocumentItem | DocumentSearchResult | null>(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+
+  // Move Modal & Drag-and-Drop state
+  const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+  const [moveModalDocIds, setMoveModalDocIds] = useState<string[]>([]);
+  const [moveModalDocNames, setMoveModalDocNames] = useState<string[]>([]);
+  const [dragOverSubfolderId, setDragOverSubfolderId] = useState<string | null>(null);
+
+  // Delete Folder Modal state
+  const [deleteFolderTarget, setDeleteFolderTarget] = useState<FolderItem | null>(null);
+  const [isDeleteFolderModalOpen, setIsDeleteFolderModalOpen] = useState(false);
+  const [isDeletingFolder, setIsDeletingFolder] = useState(false);
+  const [deleteFolderDocCount, setDeleteFolderDocCount] = useState(0);
 
   // TanStack Query for Categories & Ref data
   const { data: categories = [] } = useQuery({
@@ -77,13 +95,10 @@ export const ExplorerPage: React.FC = () => {
     },
   });
 
-  // Query All Folders for tree sidebar navigation
+  // Query All Folders flat list for tree sidebar navigation and modals
   const { data: allFoldersData = [], refetch: refetchAllFolders } = useQuery<FolderItem[]>({
     queryKey: ['all-folders-tree'],
-    queryFn: async () => {
-      const root = await folderApi.getRootContent();
-      return root.subFolders || [];
-    },
+    queryFn: folderApi.getAllFolders,
   });
 
   // Dynamic search query when filters are applied
@@ -101,6 +116,9 @@ export const ExplorerPage: React.FC = () => {
     : folderContent?.documents || [];
 
   const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['all-folders-tree'] });
+    queryClient.invalidateQueries({ queryKey: ['folder-content'] });
+    queryClient.invalidateQueries({ queryKey: ['search-documents'] });
     refetchFolderContent();
     refetchAllFolders();
     if (isSearchActive) refetchSearch();
@@ -127,22 +145,43 @@ export const ExplorerPage: React.FC = () => {
     try {
       await documentApi.bulkDelete(selectedDocIds);
       setSelectedDocIds([]);
+      if (activeDocument && selectedDocIds.includes(activeDocument.id)) {
+        setActiveDocument(null);
+      }
+      await queryClient.invalidateQueries({ queryKey: ['folder-content'] });
+      await queryClient.invalidateQueries({ queryKey: ['search-documents'] });
       handleRefresh();
     } catch (err: any) {
       alert('Erreur lors de la suppression en masse: ' + (err.response?.data?.message || err.message));
     }
   };
 
-  const handleBulkMove = async () => {
-    const target = prompt('Entrez l\'ID du dossier de destination (ou laissez vide pour la racine) :');
-    if (target === null) return;
+  const handleMoveDocument = async (documentIds: string[], targetFolderId?: string, moveToRoot = false) => {
     try {
-      await documentApi.bulkMove(selectedDocIds, target || undefined, !target);
+      await documentApi.bulkMove(documentIds, targetFolderId, moveToRoot);
       setSelectedDocIds([]);
+      if (activeDocument && documentIds.includes(activeDocument.id)) {
+        setActiveDocument(null);
+      }
+      await queryClient.invalidateQueries({ queryKey: ['folder-content'] });
+      await queryClient.invalidateQueries({ queryKey: ['search-documents'] });
       handleRefresh();
     } catch (err: any) {
-      alert('Erreur lors du déplacement en masse: ' + (err.response?.data?.message || err.message));
+      alert('Erreur lors du déplacement: ' + (err.response?.data?.message || err.message));
     }
+  };
+
+  const handleOpenMoveSingle = (doc: DocumentItem | DocumentSearchResult) => {
+    setMoveModalDocIds([doc.id]);
+    setMoveModalDocNames([doc.name]);
+    setIsMoveModalOpen(true);
+  };
+
+  const handleBulkMove = async () => {
+    const selectedDocs = displayedDocuments.filter((d) => selectedDocIds.includes(d.id));
+    setMoveModalDocIds(selectedDocIds);
+    setMoveModalDocNames(selectedDocs.map((d) => d.name));
+    setIsMoveModalOpen(true);
   };
 
   const handleBulkTag = async () => {
@@ -162,6 +201,11 @@ export const ExplorerPage: React.FC = () => {
     if (!confirm('Voulez-vous mettre ce document à la corbeille ?')) return;
     try {
       await documentApi.delete(id);
+      if (activeDocument?.id === id) {
+        setActiveDocument(null);
+      }
+      await queryClient.invalidateQueries({ queryKey: ['folder-content'] });
+      await queryClient.invalidateQueries({ queryKey: ['search-documents'] });
       handleRefresh();
     } catch (err: any) {
       alert('Erreur de suppression: ' + (err.response?.data?.message || err.message));
@@ -186,6 +230,39 @@ export const ExplorerPage: React.FC = () => {
     }
   };
 
+  const handleDeleteFolder = (folder: FolderItem) => {
+    const docsInThisFolder =
+      selectedFolderId === folder.id
+        ? (folderContent?.documents?.length ?? 0)
+        : (folderContent?.subFolders?.some((sf) => sf.id === folder.id)
+          ? 0
+          : 0);
+    setDeleteFolderTarget(folder);
+    setDeleteFolderDocCount(docsInThisFolder);
+    setIsDeleteFolderModalOpen(true);
+  };
+
+  const executeFolderDeletion = async (force: boolean) => {
+    if (!deleteFolderTarget) return;
+    setIsDeletingFolder(true);
+    try {
+      await folderApi.deleteFolder(deleteFolderTarget.id, force);
+      setIsDeleteFolderModalOpen(false);
+      if (selectedFolderId === deleteFolderTarget.id) {
+        setSelectedFolderId(undefined);
+      }
+      setDeleteFolderTarget(null);
+      await queryClient.invalidateQueries({ queryKey: ['all-folders-tree'] });
+      await queryClient.invalidateQueries({ queryKey: ['folder-content'] });
+      handleRefresh();
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Erreur inconnue';
+      alert('Erreur lors de la suppression du dossier\u00a0: ' + msg);
+    } finally {
+      setIsDeletingFolder(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-brand-bg">
       {/* Header Bar */}
@@ -207,21 +284,23 @@ export const ExplorerPage: React.FC = () => {
           onCreateFolderClick={() => setIsCreateFolderOpen(true)}
           activeFilterType={activeFilterType}
           onSelectFilterType={setActiveFilterType}
+          onMoveDocument={handleMoveDocument}
+          onDeleteFolder={handleDeleteFolder}
         />
 
         {/* Center Content Workspace */}
-        <main className="flex-1 flex flex-col overflow-y-auto p-4">
+        <main className="flex-1 flex flex-col overflow-y-auto p-5">
           {/* Breadcrumb Path & Action Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 bg-brand-surface p-3 border border-brand-border">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 bg-brand-surface p-3.5 border border-brand-border rounded-lg shadow-card">
             {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs text-brand-muted">
-              <Home className="w-3.5 h-3.5 text-brand-muted shrink-0" />
-              <ChevronRight className="w-3 h-3 text-brand-border shrink-0" />
+            <div className="flex items-center gap-2 text-xs text-brand-muted">
+              <Home className="w-4 h-4 text-brand-muted shrink-0" />
+              <ChevronRight className="w-3.5 h-3.5 text-brand-border shrink-0" />
               <span className="font-semibold text-brand-text">Racine GED</span>
               {folderContent?.currentFolder && (
                 <>
-                  <ChevronRight className="w-3 h-3 text-brand-border shrink-0" />
-                  <FolderOpen className="w-3.5 h-3.5 text-brand-primary shrink-0" />
+                  <ChevronRight className="w-3.5 h-3.5 text-brand-border shrink-0" />
+                  <FolderOpen className="w-4 h-4 text-brand-primary shrink-0" />
                   <span className="font-bold text-brand-primary">
                     {folderContent.currentFolder.name}
                   </span>
@@ -301,20 +380,55 @@ export const ExplorerPage: React.FC = () => {
           {/* Subfolders Grid if any */}
           {folderContent?.subFolders && folderContent.subFolders.length > 0 && !isSearchActive && (
             <div className="mb-4">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-brand-muted mb-2">
-                Sous-dossiers ({folderContent.subFolders.length})
+              <div className="text-[10px] font-bold uppercase tracking-wider text-brand-muted mb-2.5">
+                Sous-dossiers ({folderContent.subFolders.length}) — Glissez des documents pour déplacer
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                {folderContent.subFolders.map((sub) => (
-                  <button
-                    key={sub.id}
-                    onClick={() => setSelectedFolderId(sub.id)}
-                    className="flex items-center gap-2 p-2 bg-brand-surface border border-brand-border hover:border-brand-primary text-left text-xs font-medium truncate transition-colors"
-                  >
-                    <FolderOpen className="w-4 h-4 text-brand-primary shrink-0" />
-                    <span className="truncate">{sub.name}</span>
-                  </button>
-                ))}
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                {folderContent.subFolders.map((sub) => {
+                  const isDragOver = dragOverSubfolderId === sub.id;
+                  return (
+                    <div
+                      key={sub.id}
+                      className={`group relative flex items-center gap-2.5 p-3 text-left text-xs font-medium border rounded-lg transition-all cursor-pointer shadow-card ${
+                        isDragOver
+                          ? 'bg-brand-primary-light border-brand-primary text-brand-primary font-bold scale-105 shadow-popover'
+                          : 'bg-brand-surface border-brand-border hover:border-brand-primary/50 hover:shadow-popover text-brand-text'
+                      }`}
+                      onClick={() => setSelectedFolderId(sub.id)}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                        setDragOverSubfolderId(sub.id);
+                      }}
+                      onDragLeave={() => setDragOverSubfolderId(null)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOverSubfolderId(null);
+                        try {
+                          const dataStr = e.dataTransfer.getData('text/plain');
+                          if (!dataStr) return;
+                          const data = JSON.parse(dataStr);
+                          if (data && Array.isArray(data.documentIds)) {
+                            handleMoveDocument(data.documentIds, sub.id);
+                          }
+                        } catch { /* ignore */ }
+                      }}
+                    >
+                      <FolderOpen className="w-4 h-4 text-brand-primary shrink-0" />
+                      <span className="truncate flex-1 font-semibold">{sub.name}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteFolder(sub);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-brand-muted hover:text-brand-primary hover:bg-brand-primary-light rounded-md transition-all shrink-0"
+                        title={`Supprimer le dossier "${sub.name}"`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -327,6 +441,8 @@ export const ExplorerPage: React.FC = () => {
               onToggleSelect={handleToggleSelect}
               onToggleSelectAll={handleToggleSelectAll}
               onSelectDocument={(doc) => setActiveDocument(doc)}
+              onPreviewDocument={(doc) => setPreviewDocument(doc)}
+              onMoveSingleDocument={handleOpenMoveSingle}
               onDeleteDocument={handleDeleteSingle}
               onCheckoutDocument={handleCheckoutSingle}
               onCheckinDocument={handleCheckinSingle}
@@ -369,8 +485,47 @@ export const ExplorerPage: React.FC = () => {
           document={activeDocument}
           onClose={() => setActiveDocument(null)}
           onRefresh={handleRefresh}
+          onPreview={(doc) => setPreviewDocument(doc)}
         />
       )}
+
+      {/* Move Document Modal */}
+      {isMoveModalOpen && (
+        <MoveDocumentModal
+          isOpen={isMoveModalOpen}
+          onClose={() => setIsMoveModalOpen(false)}
+          documentIds={moveModalDocIds}
+          documentNames={moveModalDocNames}
+          folders={allFoldersData}
+          currentFolderId={selectedFolderId}
+          onSuccess={() => {
+            setSelectedDocIds([]);
+            handleRefresh();
+          }}
+        />
+      )}
+
+      {/* Interactive Document Preview Modal */}
+      {previewDocument && (
+        <DocumentPreviewModal
+          document={previewDocument}
+          onClose={() => setPreviewDocument(null)}
+        />
+      )}
+
+      {/* Delete Folder Confirmation Modal */}
+      <DeleteFolderModal
+        isOpen={isDeleteFolderModalOpen}
+        folder={deleteFolderTarget}
+        documentCount={deleteFolderDocCount}
+        hasSubfolders={!!deleteFolderTarget && allFoldersData.some((f) => f.parentId === deleteFolderTarget.id)}
+        isDeleting={isDeletingFolder}
+        onCancel={() => {
+          setIsDeleteFolderModalOpen(false);
+          setDeleteFolderTarget(null);
+        }}
+        onConfirm={executeFolderDeletion}
+      />
     </div>
   );
 };

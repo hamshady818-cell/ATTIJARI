@@ -18,20 +18,20 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyle =
-    'inline-flex items-center justify-center font-medium rounded-sm border transition-colors focus:outline-none focus:ring-1 focus:ring-brand-primary disabled:opacity-50 disabled:cursor-not-allowed select-none';
+    'inline-flex items-center justify-center font-medium rounded-md border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary disabled:opacity-50 disabled:cursor-not-allowed select-none shadow-xs';
 
   const variants = {
-    primary: 'bg-brand-primary text-white border-brand-primary hover:bg-brand-primary-hover active:bg-red-800',
-    secondary: 'bg-brand-alt text-brand-text border-brand-border hover:bg-gray-200 active:bg-gray-300',
-    outline: 'bg-white text-brand-text border-brand-border hover:bg-brand-bg hover:border-brand-border-dark',
-    danger: 'bg-red-700 text-white border-red-700 hover:bg-red-800',
-    ghost: 'bg-transparent text-brand-text border-transparent hover:bg-brand-alt',
+    primary: 'bg-brand-primary text-white border-brand-primary hover:bg-brand-primary-hover active:bg-brand-primary-hover shadow-xs',
+    secondary: 'bg-brand-alt text-brand-text border-brand-border hover:bg-brand-border active:bg-brand-border-dark',
+    outline: 'bg-brand-surface text-brand-text border-brand-border hover:bg-brand-bg hover:border-brand-border-dark',
+    danger: 'bg-brand-primary text-white border-brand-primary hover:bg-brand-primary-hover shadow-xs',
+    ghost: 'bg-transparent text-brand-text border-transparent hover:bg-brand-alt shadow-none',
   };
 
   const sizes = {
-    sm: 'px-2.5 py-1 text-xs gap-1.5 min-h-[28px]',
-    md: 'px-3.5 py-1.5 text-xs gap-2 min-h-[34px]',
-    lg: 'px-4 py-2 text-sm gap-2 min-h-[40px]',
+    sm: 'px-3 py-1 text-xs gap-1.5 min-h-[30px]',
+    md: 'px-4 py-1.5 text-xs gap-2 min-h-[36px]',
+    lg: 'px-5 py-2 text-sm gap-2 min-h-[42px]',
   };
 
   return (

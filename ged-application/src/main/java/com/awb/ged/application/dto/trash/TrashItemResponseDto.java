@@ -17,6 +17,7 @@ public class TrashItemResponseDto {
     private UUID id;
     private String entityType;
     private UUID entityId;
+    private String name;
     private UUID originalFolderId;
     private UUID deletedBy;
     private Instant deletedAt;

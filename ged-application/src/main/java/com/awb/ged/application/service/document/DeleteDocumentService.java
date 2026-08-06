@@ -38,6 +38,7 @@ public class DeleteDocumentService implements DeleteDocumentUseCase {
 
         document.setDeletedAt(Instant.now());
         document.setDeletedBy(deletedByUserId);
+        document.setStatus(Document.DocumentStatus.TRASHED);
 
         documentRepositoryPort.save(document);
 

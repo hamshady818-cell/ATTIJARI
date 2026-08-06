@@ -36,6 +36,9 @@ public class DocumentVersion {
     /** Size of the file in bytes */
     private long sizeBytes;
 
+    /** MIME type of this version's file content (e.g. "application/pdf") */
+    private String mimeType;
+
     /** Logical file reference identifier (used by infrastructure to map physical file) */
     private FileReferenceId fileReferenceId;
 

@@ -21,7 +21,7 @@ public class FolderRepositoryAdapter implements FolderRepositoryPort {
     private final UserJpaRepository userJpaRepository;
 
     public FolderRepositoryAdapter(FolderJpaRepository folderJpaRepository,
-                                  UserJpaRepository userJpaRepository) {
+            UserJpaRepository userJpaRepository) {
         this.folderJpaRepository = folderJpaRepository;
         this.userJpaRepository = userJpaRepository;
     }
@@ -59,7 +59,7 @@ public class FolderRepositoryAdapter implements FolderRepositoryPort {
     @Override
     @Transactional(readOnly = true)
     public List<Folder> findAll() {
-        return folderJpaRepository.findAll().stream().map(this::mapToDomain).toList();
+        return folderJpaRepository.findByDeletedAtIsNull().stream().map(this::mapToDomain).toList();
     }
 
     @Override
@@ -74,7 +74,8 @@ public class FolderRepositoryAdapter implements FolderRepositoryPort {
     }
 
     private Folder mapToDomain(FolderJpaEntity entity) {
-        if (entity == null) return null;
+        if (entity == null)
+            return null;
         return Folder.builder()
                 .id(entity.getId())
                 .name(entity.getName())
@@ -88,7 +89,8 @@ public class FolderRepositoryAdapter implements FolderRepositoryPort {
     }
 
     private FolderJpaEntity mapToEntity(Folder domain) {
-        if (domain == null) return null;
+        if (domain == null)
+            return null;
 
         FolderJpaEntity parent = null;
         if (domain.getParentId() != null) {
@@ -101,7 +103,8 @@ public class FolderRepositoryAdapter implements FolderRepositoryPort {
         }
 
         String path = (parent != null)
-                ? parent.getPath() + "." + (domain.getId() != null ? domain.getId().toString().replace("-", "_") : "new")
+                ? parent.getPath() + "."
+                        + (domain.getId() != null ? domain.getId().toString().replace("-", "_") : "new")
                 : (domain.getId() != null ? domain.getId().toString().replace("-", "_") : "root");
 
         UserJpaEntity deleter = null;

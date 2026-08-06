@@ -20,8 +20,13 @@ public final class DocumentSpecifications {
         return (root, criteriaQuery, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            // Always exclude soft-deleted documents
-            predicates.add(cb.isNull(root.get("deletedAt")));
+            // Handle soft-deleted documents vs active documents filter
+            boolean isTrashSearch = "TRASHED".equalsIgnoreCase(query.getStatus());
+            if (isTrashSearch) {
+                predicates.add(cb.isNotNull(root.get("deletedAt")));
+            } else {
+                predicates.add(cb.isNull(root.get("deletedAt")));
+            }
 
             // Keyword search: match against title or description (partial, case-insensitive)
             if (query.getKeyword() != null && !query.getKeyword().isBlank()) {

@@ -74,7 +74,11 @@ public class UploadNewVersionService implements UploadNewVersionUseCase {
         String storagePath = "documents/" + command.getDocumentId() + "/v" + nextVersion;
         FileReferenceId fileRef = storagePort.store(storagePath, content, command.getMimeType());
 
-        // 6. Build new DocumentVersion
+        // 6. Build new DocumentVersion — avec le mimeType réel du fichier
+        String effectiveMimeType = (command.getMimeType() != null && !command.getMimeType().isBlank())
+                ? command.getMimeType()
+                : "application/octet-stream";
+
         Instant now = Instant.now();
         DocumentVersion newVersion = DocumentVersion.builder()
                 .id(versionId)
@@ -82,6 +86,7 @@ public class UploadNewVersionService implements UploadNewVersionUseCase {
                 .versionNumber(nextVersion)
                 .hash(checksumHex)
                 .sizeBytes(content.length)
+                .mimeType(effectiveMimeType)
                 .fileReferenceId(fileRef)
                 .uploadedBy(command.getUploadedBy())
                 .uploadedAt(now)

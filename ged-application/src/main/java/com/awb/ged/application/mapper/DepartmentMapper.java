@@ -4,7 +4,7 @@ import com.awb.ged.application.dto.department.DepartmentResponseDto;
 import com.awb.ged.domain.department.model.Department;
 import org.mapstruct.Mapper;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface DepartmentMapper {
     DepartmentResponseDto toResponseDto(Department department);
 }

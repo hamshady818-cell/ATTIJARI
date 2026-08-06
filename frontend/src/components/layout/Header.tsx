@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FolderTree, LayoutDashboard, Trash2, Bell, Search, ShieldCheck } from 'lucide-react';
+import { FolderTree, LayoutDashboard, Trash2, Search, ShieldCheck, ChevronDown, LogOut, User } from 'lucide-react';
+import { NotificationPanel } from './NotificationPanel';
+import { AttijariLogo } from '../ui/AttijariLogo';
+import keycloak from '../../lib/keycloak';
 
 interface HeaderProps {
   onSearchChange?: (val: string) => void;
@@ -8,69 +11,95 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onSearchChange, searchValue = '' }) => {
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Nom réel de l'utilisateur extrait du token Keycloak
+  const username =
+    keycloak.tokenParsed?.preferred_username ||
+    keycloak.tokenParsed?.name ||
+    keycloak.tokenParsed?.email ||
+    'Agent GED';
+  const email = keycloak.tokenParsed?.email || '';
+
+  const handleLogout = () => {
+    keycloak.logout({ redirectUri: window.location.origin });
+  };
+
+  // Fermeture du menu déroulant si clic à l'extérieur
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    if (isUserMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isUserMenuOpen]);
+
   return (
-    <header className="sticky top-0 z-40 bg-brand-surface border-b border-brand-border">
+    <header className="sticky top-0 z-40 bg-brand-surface border-b border-brand-border shadow-flat">
       {/* Top Red-Orange Attijari Accent Bar */}
       <div className="h-1 bg-brand-primary w-full" />
 
-      <div className="flex items-center justify-between px-4 h-12">
+      <div className="flex items-center justify-between px-5 h-13">
         {/* Left: Branding & App Title */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-brand-primary flex items-center justify-center text-white font-bold text-xs rounded-none">
-              AW
-            </div>
+        <div className="flex items-center gap-5">
+          <div className="flex items-center gap-3">
+            <AttijariLogo className="w-8 h-8" />
             <div>
-              <span className="font-bold text-xs tracking-wider uppercase text-brand-text">GED-AWB</span>
-              <span className="ml-2 text-[10px] font-mono text-brand-muted uppercase bg-brand-alt px-1.5 py-0.5 border border-brand-border">
+              <span className="font-bold text-xs tracking-wider uppercase text-brand-text block">GED-AWB</span>
+              <span className="text-[10px] font-mono text-brand-muted uppercase bg-brand-alt px-1.5 py-0.5 rounded-sm border border-brand-border inline-block">
                 Attijariwafa Bank
               </span>
             </div>
           </div>
 
-          <div className="h-4 w-px bg-brand-border" />
+          <div className="h-5 w-px bg-brand-border" />
 
           {/* Navigation Links */}
-          <nav className="flex items-center gap-1">
+          <nav className="flex items-center gap-1.5">
             <NavLink
               to="/"
               className={({ isActive }) =>
-                `flex items-center gap-1.5 px-3 py-1 text-xs font-medium border transition-colors ${
+                `flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all duration-150 ${
                   isActive
-                    ? 'bg-brand-primary text-white border-brand-primary'
-                    : 'text-brand-text border-transparent hover:bg-brand-alt'
+                    ? 'bg-brand-primary text-white shadow-xs'
+                    : 'text-brand-text hover:bg-brand-alt'
                 }`
               }
             >
-              <FolderTree className="w-3.5 h-3.5" />
+              <FolderTree className="w-4 h-4" />
               <span>Explorateur</span>
             </NavLink>
 
             <NavLink
               to="/dashboard"
               className={({ isActive }) =>
-                `flex items-center gap-1.5 px-3 py-1 text-xs font-medium border transition-colors ${
+                `flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all duration-150 ${
                   isActive
-                    ? 'bg-brand-primary text-white border-brand-primary'
-                    : 'text-brand-text border-transparent hover:bg-brand-alt'
+                    ? 'bg-brand-primary text-white shadow-xs'
+                    : 'text-brand-text hover:bg-brand-alt'
                 }`
               }
             >
-              <LayoutDashboard className="w-3.5 h-3.5" />
+              <LayoutDashboard className="w-4 h-4" />
               <span>Tableau de bord</span>
             </NavLink>
 
             <NavLink
               to="/trash"
               className={({ isActive }) =>
-                `flex items-center gap-1.5 px-3 py-1 text-xs font-medium border transition-colors ${
+                `flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all duration-150 ${
                   isActive
-                    ? 'bg-brand-primary text-white border-brand-primary'
-                    : 'text-brand-text border-transparent hover:bg-brand-alt'
+                    ? 'bg-brand-primary text-white shadow-xs'
+                    : 'text-brand-text hover:bg-brand-alt'
                 }`
               }
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-4 h-4" />
               <span>Corbeille</span>
             </NavLink>
           </nav>
@@ -80,13 +109,13 @@ export const Header: React.FC<HeaderProps> = ({ onSearchChange, searchValue = ''
         {onSearchChange && (
           <div className="flex-1 max-w-md mx-6">
             <div className="relative flex items-center">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 text-brand-muted pointer-events-none" />
+              <Search className="w-4 h-4 absolute left-3 text-brand-muted pointer-events-none" />
               <input
                 type="text"
                 placeholder="Rechercher par nom, mot-clé, catégorie..."
                 value={searchValue}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="w-full bg-brand-bg border border-brand-border text-xs text-brand-text pl-8 pr-3 py-1 rounded-sm focus:outline-none focus:bg-white focus:border-brand-primary transition-colors"
+                className="w-full bg-brand-bg border border-brand-border text-xs text-brand-text pl-9 pr-3 py-1.5 rounded-md focus:outline-none focus:bg-white focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-all duration-150"
               />
             </div>
           </div>
@@ -94,23 +123,57 @@ export const Header: React.FC<HeaderProps> = ({ onSearchChange, searchValue = ''
 
         {/* Right: Quick User & Notifications Widget */}
         <div className="flex items-center gap-3 text-xs">
-          <button
-            title="Notifications"
-            className="p-1.5 text-brand-muted hover:text-brand-text hover:bg-brand-alt border border-brand-border rounded-sm relative"
-          >
-            <Bell className="w-3.5 h-3.5" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-brand-primary rounded-none" />
-          </button>
+          {/* Notifications — dropdown interactif */}
+          <NotificationPanel />
 
-          <div className="h-4 w-px bg-brand-border" />
+          <div className="h-5 w-px bg-brand-border" />
 
-          {/* User profile */}
-          <div className="flex items-center gap-2 px-2 py-1 bg-brand-alt border border-brand-border">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-            <div className="flex flex-col text-left">
-              <span className="font-semibold text-[11px] leading-none text-brand-text">Agent GED</span>
-              <span className="text-[9px] text-brand-muted leading-tight">Keycloak SSO</span>
-            </div>
+          {/* User Profile Dropdown */}
+          <div className="relative" ref={userMenuRef}>
+            <button
+              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              className="flex items-center gap-2.5 px-3 py-1.5 bg-brand-alt hover:bg-brand-border/60 border border-brand-border rounded-md transition-colors text-left focus:outline-none"
+              title="Profil & Déconnexion"
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
+              <div className="flex flex-col text-left">
+                <span className="font-semibold text-xs leading-none text-brand-text max-w-[120px] truncate">
+                  {username}
+                </span>
+                <span className="text-[9px] text-brand-muted leading-tight mt-0.5">Keycloak SSO</span>
+              </div>
+              <ChevronDown className={`w-3.5 h-3.5 text-brand-muted transition-transform duration-200 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Menu Déroulant Profil */}
+            {isUserMenuOpen && (
+              <div className="absolute right-0 top-full mt-2 w-60 bg-brand-surface border border-brand-border shadow-popover z-50 animate-in fade-in slide-in-from-top-2 duration-150 rounded-lg overflow-hidden">
+                {/* En-tête du menu */}
+                <div className="p-3.5 bg-brand-alt border-b border-brand-border space-y-1">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-brand-primary" />
+                    <span className="font-bold text-xs text-brand-text truncate">{username}</span>
+                  </div>
+                  {email && (
+                    <p className="text-[10px] text-brand-muted font-mono truncate">{email}</p>
+                  )}
+                  <span className="inline-block text-[9px] bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold px-2 py-0.5 rounded-md uppercase mt-1">
+                    Session Keycloak SSO Active
+                  </span>
+                </div>
+
+                {/* Contenu du menu */}
+                <div className="p-1.5">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 font-medium transition-colors rounded-md text-left"
+                  >
+                    <LogOut className="w-4 h-4 shrink-0 text-red-600" />
+                    <span>Déconnexion</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

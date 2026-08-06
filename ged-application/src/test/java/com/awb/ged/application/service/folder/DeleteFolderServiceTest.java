@@ -1,6 +1,7 @@
 package com.awb.ged.application.service.folder;
 
 import com.awb.ged.application.port.out.event.EventPublisherPort;
+import com.awb.ged.application.port.out.persistence.CascadeDeleteFolderPort;
 import com.awb.ged.application.port.out.persistence.DocumentRepositoryPort;
 import com.awb.ged.application.port.out.persistence.FolderRepositoryPort;
 import com.awb.ged.common.event.DomainEvent;
@@ -37,11 +38,14 @@ class DeleteFolderServiceTest {
     @Mock
     private EventPublisherPort eventPublisherPort;
 
+    @Mock
+    private CascadeDeleteFolderPort cascadeDeleteFolderPort;
+
     private DeleteFolderService deleteFolderService;
 
     @BeforeEach
     void setUp() {
-        deleteFolderService = new DeleteFolderService(folderRepositoryPort, documentRepositoryPort, eventPublisherPort);
+        deleteFolderService = new DeleteFolderService(folderRepositoryPort, documentRepositoryPort, cascadeDeleteFolderPort, eventPublisherPort);
     }
 
     @Test
@@ -62,7 +66,7 @@ class DeleteFolderServiceTest {
         given(folderRepositoryPort.save(any(Folder.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         // When
-        deleteFolderService.deleteFolder(folderId, userId);
+        deleteFolderService.deleteFolder(folderId, userId, false);
 
         // Then
         assertThat(folder.getDeletedAt()).isNotNull();
@@ -80,7 +84,7 @@ class DeleteFolderServiceTest {
         given(folderRepositoryPort.findById(folderId)).willReturn(Optional.empty());
 
         // When / Then
-        assertThatThrownBy(() -> deleteFolderService.deleteFolder(folderId, userId))
+        assertThatThrownBy(() -> deleteFolderService.deleteFolder(folderId, userId, false))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining(folderId.toString());
         verify(folderRepositoryPort, never()).save(any());
@@ -100,7 +104,7 @@ class DeleteFolderServiceTest {
         given(folderRepositoryPort.findByParentId(folderId)).willReturn(List.of(subfolder));
 
         // When / Then
-        assertThatThrownBy(() -> deleteFolderService.deleteFolder(folderId, userId))
+        assertThatThrownBy(() -> deleteFolderService.deleteFolder(folderId, userId, false))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("active subfolders");
         verify(folderRepositoryPort, never()).save(any());
@@ -121,7 +125,7 @@ class DeleteFolderServiceTest {
         given(documentRepositoryPort.findByFolderId(folderId)).willReturn(List.of(document));
 
         // When / Then
-        assertThatThrownBy(() -> deleteFolderService.deleteFolder(folderId, userId))
+        assertThatThrownBy(() -> deleteFolderService.deleteFolder(folderId, userId, false))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("active documents");
         verify(folderRepositoryPort, never()).save(any());

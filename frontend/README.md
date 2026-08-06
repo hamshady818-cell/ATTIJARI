@@ -1,32 +1,49 @@
-# React + TypeScript + Vite
+# 🖥️ Application Frontend GED-AWB
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Ce répertoire contient l'application web monopage (*Single Page Application* - SPA) pour **GED-AWB** (*Gestion Électronique des Documents - Attijariwafa Bank*).
 
-Currently, two official plugins are available:
+## 🚀 Technologies Utilisées
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+* **Framework** : [React 19](https://react.dev/) + [TypeScript 5](https://www.typescriptlang.org/)
+* **Outil de Build** : [Vite 8](https://vitejs.dev/)
+* **Styles** : [Tailwind CSS v3](https://tailwindcss.com/)
+* **Routage** : [React Router v7](https://reactrouter.com/)
+* **Gestion d'État & Requêtes API** : [TanStack Query v5 (React Query)](https://tanstack.com/query/latest)
+* **Formulaires & Validation** : [React Hook Form](https://react-hook-form.com/) + [Zod](https://zod.dev/)
+* **Client HTTP** : [Axios](https://axios-http.com/)
+* **Icônes** : [Lucide React](https://lucide.dev/)
+* **Linter** : [Oxlint](https://oxc.rs/docs/guide/usage/linter.html)
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠️ Commandes Disponibles
 
-## Expanding the Oxlint configuration
+Dans le dossier `frontend`, vous pouvez exécuter les commandes suivantes :
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+### `npm run dev`
+Lance l'application en mode développement sur [http://localhost:5173](http://localhost:5173).
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+### `npm run build`
+Exécute la vérification des types TypeScript (`tsc -b`) et compile l'application pour la production dans le dossier `dist`.
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+### `npm run lint`
+Lance l'analyse du code avec Oxlint.
+
+### `npm run preview`
+Affiche un aperçu local du build de production.
+
+---
+
+## 📁 Principales Fonctionnalités Incluses
+
+* **Explorateur de Documents** : Grille et tableau d'affichage dynamiques avec fil d'Ariane, tri et filtrage en temps réel.
+* **Actions sur les Documents** : Modal de téléversement par glisser-déposer, modal de création de dossier, barre d'outils pour la sélection groupée.
+* **Panneau de Détails** : Volet latéral de prévisualisation avec affichage des métadonnées dynamiques, des permissions et panneau de chat IA.
+* **Corbeille & Récupération** : Interface pour visualiser les éléments supprimés avec possibilité de restauration ou de suppression définitive.
+* **Tableau de Bord (Dashboard)** : Statistiques globales sur les documents stockés, les catégories, l'espace disque consommé et les activités récentes.
+
+---
+
+## 📖 Documentation Principale
+
+Pour la documentation complète sur l'architecture globale, la configuration du backend et les variables d'environnement, veuillez vous référer au fichier [README.md](file:///c:/Users/HP/Documents/GED-ATTIJARI/ATTIJARI/README.md) situé à la racine du projet.

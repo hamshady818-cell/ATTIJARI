@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { AttijariLogo } from '../components/ui/AttijariLogo';
 import { Lock, User, ShieldCheck } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
@@ -16,21 +17,19 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-brand-bg flex flex-col justify-center items-center p-4">
+    <div className="min-h-screen bg-brand-bg flex flex-col justify-center items-center p-4 relative">
       {/* Top Red Bar Accent */}
       <div className="fixed top-0 left-0 right-0 h-1.5 bg-brand-primary" />
 
-      <div className="w-full max-w-sm bg-brand-surface border border-brand-border shadow-popover p-6 space-y-6">
+      <div className="w-full max-w-sm bg-brand-surface border border-brand-border rounded-xl shadow-modal overflow-hidden p-6 space-y-6">
         {/* Attijari Header Branding */}
-        <div className="text-center space-y-2 border-b border-brand-border pb-4">
-          <div className="w-10 h-10 bg-brand-primary mx-auto flex items-center justify-center text-white font-bold text-base rounded-none">
-            AW
-          </div>
+        <div className="text-center space-y-3 border-b border-brand-border pb-5">
+          <AttijariLogo className="w-14 h-14 mx-auto" />
           <div>
             <h1 className="text-sm font-bold tracking-wider uppercase text-brand-text">
               GED-AWB Workstation
             </h1>
-            <p className="text-[11px] font-mono text-brand-muted uppercase">
+            <p className="text-[11px] font-mono text-brand-muted uppercase mt-0.5">
               Attijariwafa bank — Portail Interne
             </p>
           </div>
@@ -56,8 +55,8 @@ export const LoginPage: React.FC = () => {
           />
 
           <div className="flex items-center justify-between text-[11px] text-brand-muted">
-            <span className="flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3 text-emerald-700" />
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-700" />
               SSO Authentification active
             </span>
             <span className="font-mono">v0.1.0</span>
@@ -68,7 +67,7 @@ export const LoginPage: React.FC = () => {
           </Button>
         </form>
 
-        <div className="text-[10px] text-brand-muted text-center border-t border-brand-border pt-3">
+        <div className="text-[10px] text-brand-muted text-center border-t border-brand-border pt-4">
           Ce système est réservé à l'usage exclusif du personnel autorisé d'Attijariwafa bank.
         </div>
       </div>

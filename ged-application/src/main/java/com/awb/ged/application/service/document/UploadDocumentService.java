@@ -102,34 +102,49 @@ public class UploadDocumentService implements UploadDocumentUseCase {
         String storagePath = "documents/" + documentId + "/v1";
         FileReferenceId fileRef = storagePort.store(storagePath, content, command.getMimeType());
 
-        // 6. Build DocumentVersion (v1)
+        // 6. Build DocumentVersion (v1) — avec le mimeType réel du fichier
         Instant now = Instant.now();
+        String effectiveMimeType = (command.getMimeType() != null && !command.getMimeType().isBlank())
+                ? command.getMimeType()
+                : "application/octet-stream";
+
         DocumentVersion v1 = DocumentVersion.builder()
                 .id(versionId)
                 .documentId(documentId)
                 .versionNumber(1)
                 .hash(checksumHex)
                 .sizeBytes(content.length)
+                .mimeType(effectiveMimeType)
                 .fileReferenceId(fileRef)
                 .uploadedBy(command.getOwnerId())
                 .uploadedAt(now)
                 .build();
 
-        // 7. Build Document Aggregate Root
+        // 7. Build Document Aggregate Root (initial save without activeVersionId to satisfy @NotNull on DocumentVersionJpaEntity)
         Document document = Document.builder()
                 .id(documentId)
                 .name(command.getName().trim())
                 .folderId(command.getFolderId())
                 .categoryId(command.getCategoryId())
                 .ownerId(command.getOwnerId())
-                .activeVersionId(versionId)
+                .mimeType(effectiveMimeType)
+                .activeVersionId(null)
                 .createdAt(now)
                 .updatedAt(now)
                 .build();
 
-        // 8. Save document and version
-        Document savedDoc = documentRepositoryPort.save(document);
+        // 8. 3-Step Persistence Flow for Circular FK (Document <-> DocumentVersion):
+        // Step 1: Save Document record first (so DocumentJpaEntity exists in DB for foreign key constraint)
+        documentRepositoryPort.save(document);
+
+        // Step 2: Save DocumentVersion v1 (finds the saved DocumentJpaEntity, satisfying @NotNull validation)
         documentRepositoryPort.saveVersion(v1);
+
+        // Step 3: Link activeVersionId on Document and save final state
+        Document documentWithActiveVersion = document.toBuilder()
+                .activeVersionId(versionId)
+                .build();
+        Document savedDoc = documentRepositoryPort.save(documentWithActiveVersion);
 
         // 9. Publish Domain Event
         if (eventPublisherPort != null) {

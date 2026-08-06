@@ -52,7 +52,33 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
 
     @Override
     public Document save(Document document) {
-        DocumentJpaEntity entity = mapToEntity(document);
+        DocumentJpaEntity entity;
+
+        if (document.getId() != null) {
+            // Recherche de l'entité managée existante dans le Session Hibernate.
+            // - Si elle EXISTE en base : on met à jour ses champs (UPDATE).
+            //   Utiliser l'entité managée évite la NonUniqueObjectException.
+            // - Si elle N'EXISTE PAS encore : c'est un nouveau document avec un ID
+            //   pré-assigné par le service (UUID.randomUUID()). On construit via
+            //   buildNewEntity() qui assigne correctement l'ID AVANT persist().
+            //   NE PAS utiliser applyDomainToEntity() sur new DocumentJpaEntity() vide
+            //   car BaseEntity.isNew=true + id=null → "Identifier must be manually assigned".
+            java.util.Optional<DocumentJpaEntity> existing = documentJpaRepository.findById(document.getId());
+            if (existing.isPresent()) {
+                entity = existing.get();
+                applyDomainToEntity(document, entity);
+            } else {
+                entity = buildNewEntity(document);
+            }
+        } else {
+            // Cas théorique (le service devrait toujours pré-assigner un ID).
+            // On génère un UUID de secours pour garantir la non-nullité.
+            entity = buildNewEntity(document);
+            if (entity.getId() == null) {
+                entity.setId(java.util.UUID.randomUUID());
+            }
+        }
+
         DocumentJpaEntity saved = documentJpaRepository.save(entity);
         return mapToDomain(saved);
     }
@@ -331,43 +357,17 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
                 .build();
     }
 
-    private DocumentJpaEntity mapToEntity(Document domain) {
-        if (domain == null) return null;
-
-        FolderJpaEntity folder = null;
-        if (domain.getFolderId() != null) {
-            folder = folderJpaRepository.findById(domain.getFolderId()).orElse(null);
-        }
-
-        UserJpaEntity owner = null;
-        if (domain.getOwnerId() != null) {
-            owner = userJpaRepository.findById(domain.getOwnerId()).orElse(null);
-        }
-
-        DocumentVersionJpaEntity currentVersion = null;
-        if (domain.getActiveVersionId() != null) {
-            currentVersion = documentVersionJpaRepository.findById(domain.getActiveVersionId()).orElse(null);
-        }
-
-        Set<TagJpaEntity> tags = new HashSet<>();
-        if (domain.getTags() != null) {
-            for (DocumentTag tagDomain : domain.getTags()) {
-                tagJpaRepository.findByName(tagDomain.getName()).ifPresent(tags::add);
-            }
-        }
-
-        UserJpaEntity deleter = null;
-        if (domain.getDeletedBy() != null) {
-            deleter = userJpaRepository.findById(domain.getDeletedBy()).orElse(null);
-        }
-
-        // Map domain status to JPA status
-        DocumentJpaEntity.DocumentStatus jpaStatus = DocumentJpaEntity.DocumentStatus.DRAFT;
-        if (domain.getStatus() != null) {
-            try {
-                jpaStatus = DocumentJpaEntity.DocumentStatus.valueOf(domain.getStatus().name());
-            } catch (IllegalArgumentException ignored) {}
-        }
+    /**
+     * Builds a brand-new JPA entity for INSERT operations.
+     * Used only when domain.getId() is null (first save of a new document).
+     */
+    private DocumentJpaEntity buildNewEntity(Document domain) {
+        FolderJpaEntity folder = resolveFolderEntity(domain.getFolderId());
+        UserJpaEntity owner = resolveUserEntity(domain.getOwnerId());
+        DocumentVersionJpaEntity currentVersion = resolveVersionEntity(domain.getActiveVersionId());
+        Set<TagJpaEntity> tags = resolveTagEntities(domain);
+        UserJpaEntity deleter = resolveUserEntity(domain.getDeletedBy());
+        DocumentJpaEntity.DocumentStatus jpaStatus = resolveJpaStatus(domain.getStatus());
 
         DocumentJpaEntity entity = DocumentJpaEntity.builder()
                 .title(domain.getName())
@@ -385,10 +385,80 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
                 .tags(tags)
                 .build();
 
-        if (domain.getId() != null) {
-            entity.setId(domain.getId());
-        }
+        entity.setId(domain.getId() != null ? domain.getId() : UUID.randomUUID());
         return entity;
+    }
+
+    /**
+     * Applies domain changes to an existing managed JPA entity for UPDATE operations.
+     * Only mutable fields are updated — immutable fields (owner, createdBy, etc.) are preserved.
+     * This pattern avoids Hibernate NonUniqueObjectException.
+     */
+    private void applyDomainToEntity(Document domain, DocumentJpaEntity entity) {
+        // Mutable metadata
+        if (domain.getName() != null) entity.setTitle(domain.getName());
+        if (domain.getDescription() != null) entity.setDescription(domain.getDescription());
+        if (domain.getMimeType() != null) entity.setMimeType(domain.getMimeType());
+
+        // Status
+        DocumentJpaEntity.DocumentStatus jpaStatus = resolveJpaStatus(domain.getStatus());
+        entity.setStatus(jpaStatus);
+
+        // Soft-delete fields
+        entity.setDeleted(domain.isDeleted());
+        entity.setDeletedAt(domain.getDeletedAt());
+        entity.setDeletedBy(domain.getDeletedBy() != null ? resolveUserEntity(domain.getDeletedBy()) : null);
+
+        // Folder (move)
+        if (domain.getFolderId() != null || entity.getFolder() != null) {
+            entity.setFolder(resolveFolderEntity(domain.getFolderId()));
+        }
+
+        // Active version pointer
+        if (domain.getActiveVersionId() != null) {
+            DocumentVersionJpaEntity currentVersion = resolveVersionEntity(domain.getActiveVersionId());
+            entity.setCurrentVersion(currentVersion);
+        }
+
+        // Tags
+        Set<TagJpaEntity> tags = resolveTagEntities(domain);
+        entity.setTags(tags);
+    }
+
+    // --- Helper resolvers (avoid code duplication) ---
+
+    private FolderJpaEntity resolveFolderEntity(UUID folderId) {
+        if (folderId == null) return null;
+        return folderJpaRepository.findById(folderId).orElse(null);
+    }
+
+    private UserJpaEntity resolveUserEntity(UUID userId) {
+        if (userId == null) return null;
+        return userJpaRepository.findById(userId).orElse(null);
+    }
+
+    private DocumentVersionJpaEntity resolveVersionEntity(UUID versionId) {
+        if (versionId == null) return null;
+        return documentVersionJpaRepository.findById(versionId).orElse(null);
+    }
+
+    private Set<TagJpaEntity> resolveTagEntities(Document domain) {
+        Set<TagJpaEntity> tags = new HashSet<>();
+        if (domain.getTags() != null) {
+            for (DocumentTag tagDomain : domain.getTags()) {
+                tagJpaRepository.findByName(tagDomain.getName()).ifPresent(tags::add);
+            }
+        }
+        return tags;
+    }
+
+    private DocumentJpaEntity.DocumentStatus resolveJpaStatus(Document.DocumentStatus status) {
+        if (status == null) return DocumentJpaEntity.DocumentStatus.DRAFT;
+        try {
+            return DocumentJpaEntity.DocumentStatus.valueOf(status.name());
+        } catch (IllegalArgumentException ignored) {
+            return DocumentJpaEntity.DocumentStatus.DRAFT;
+        }
     }
 
     private DocumentVersion mapVersionToDomain(DocumentVersionJpaEntity entity) {
@@ -402,6 +472,7 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
                 .versionNumber(entity.getVersionNumber())
                 .hash(entity.getChecksumSha256())
                 .sizeBytes(entity.getFileSizeBytes())
+                .mimeType(entity.getMimeType())
                 .fileReferenceId(new FileReferenceId(fileRefValue))
                 .uploadedBy(entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null)
                 .uploadedAt(entity.getCreatedAt())
@@ -434,6 +505,11 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
             }
         }
 
+        // BUG 2 FIX: Utiliser le mimeType réel du domaine, jamais un hardcode "application/octet-stream"
+        String mimeType = (domain.getMimeType() != null && !domain.getMimeType().isBlank())
+                ? domain.getMimeType()
+                : "application/octet-stream";
+
         DocumentVersionJpaEntity entity = DocumentVersionJpaEntity.builder()
                 .document(document)
                 .versionNumber(domain.getVersionNumber())
@@ -444,13 +520,11 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
                 .fileReferenceId(domain.getFileReferenceId() != null
                         ? domain.getFileReferenceId().getValue()
                         : (bucket + "/" + path))
-                .mimeType("application/octet-stream")
+                .mimeType(mimeType)
                 .createdBy(uploader)
                 .build();
 
-        if (domain.getId() != null) {
-            entity.setId(domain.getId());
-        }
+        entity.setId(domain.getId() != null ? domain.getId() : UUID.randomUUID());
         return entity;
     }
 }

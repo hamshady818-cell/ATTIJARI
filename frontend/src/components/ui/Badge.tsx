@@ -36,18 +36,18 @@ export const Badge: React.FC<BadgeProps> = ({ status, children, variant, classNa
   }
 
   const styles = {
-    default: 'bg-gray-100 text-gray-700 border-gray-300',
-    draft: 'bg-gray-100 text-gray-800 border-gray-400 font-semibold',
-    published: 'bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold',
-    archived: 'bg-amber-50 text-amber-900 border-amber-300 font-semibold',
-    trashed: 'bg-red-50 text-red-800 border-red-300 font-semibold',
-    locked: 'bg-red-100 text-red-900 border-red-400 font-bold',
-    tag: 'bg-brand-alt text-brand-text border-brand-border',
+    default: 'bg-brand-alt text-brand-muted border-brand-border',
+    draft: 'bg-gray-100 text-gray-700 border-gray-200 font-semibold',
+    published: 'bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold',
+    archived: 'bg-amber-50 text-amber-800 border-amber-200 font-semibold',
+    trashed: 'bg-red-50 text-red-700 border-red-200 font-semibold',
+    locked: 'bg-red-100 text-red-800 border-red-300 font-bold',
+    tag: 'bg-brand-alt text-brand-text border-brand-border hover:border-brand-secondary transition-colors',
   };
 
   return (
     <span
-      className={`inline-flex items-center px-1.5 py-0.5 text-[10px] uppercase font-mono tracking-wider border rounded-none ${
+      className={`inline-flex items-center px-2 py-0.5 text-[10px] uppercase font-mono tracking-wider border rounded-md ${
         styles[activeVariant || 'default']
       } ${className}`}
     >

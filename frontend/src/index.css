@@ -3,33 +3,34 @@
 @tailwind utilities;
 
 :root {
-  /* Charte Couleurs GED-AWB Attijariwafa bank */
-  --color-primary: #E2231A;
-  --color-primary-hover: #C91C14;
+  /* Charte Couleurs Institutionnelle Attijariwafa bank */
+  --color-primary: #C8102E;
+  --color-primary-hover: #A00C24;
   --color-primary-light: #FDF2F2;
-  
+
   --color-secondary: #FDB913;
+  --color-secondary-hover: #E0A20D;
   --color-secondary-light: #FFFBEB;
 
-  --color-bg-main: #F7F7F5;
-  --color-bg-alt: #EFEFED;
+  --color-bg-main: #F8F9FA;
+  --color-bg-alt: #F1F3F5;
   --color-bg-surface: #FFFFFF;
 
-  --color-text-main: #2B2B2B;
-  --color-text-muted: #6B6B68;
+  --color-text-main: #1A1D20;
+  --color-text-muted: #6C757D;
 
-  --color-border: #E0E0DD;
-  --color-border-dark: #B5B5B0;
+  --color-border: #DEE2E6;
+  --color-border-dark: #CED4DA;
 
-  /* Statuts */
-  --color-status-draft: #5A5A57;
-  --color-status-published: #1E7E34;
-  --color-status-archived: #856404;
-  --color-status-trashed: #C82333;
-  --color-status-locked: #D32F2F;
+  /* Statuts GED */
+  --color-status-draft: #495057;
+  --color-status-published: #198754;
+  --color-status-archived: #D97706;
+  --color-status-trashed: #DC3545;
+  --color-status-locked: #C8102E;
 }
 
-/* Restyle scrollbars to match crisp workstation UI */
+/* Custom scrollbars matching workstation UI */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -38,11 +39,11 @@
   background: var(--color-bg-alt);
 }
 ::-webkit-scrollbar-thumb {
-  background: #C8C8C5;
-  border-radius: 2px;
+  background: #CED4DA;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #9E9E9A;
+  background: #ADB5BD;
 }
 
 body {
@@ -50,29 +51,97 @@ body {
   padding: 0;
   background-color: var(--color-bg-main);
   color: var(--color-text-main);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 13px;
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
 }
 
+/* Typographie & Hiérarchie Bancaire Corporate */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--color-text-main);
+  letter-spacing: -0.015em;
+  font-weight: 700;
+}
+
 /* Custom Table & Dense Utility Classes */
 .table-dense th {
-  padding: 8px 12px;
+  padding: 10px 14px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--color-text-muted);
   background-color: var(--color-bg-alt);
   border-bottom: 1px solid var(--color-border);
 }
 
 .table-dense td {
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--color-border);
 }
 
 .table-dense tr:hover td {
-  background-color: #F0F0EE;
+  background-color: #F1F3F5;
+}
+
+/* ── XLSX Preview Table Styles ── */
+.xlsx-preview-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 11px;
+}
+
+.xlsx-preview-table th,
+.xlsx-preview-table td {
+  border: 1px solid var(--color-border);
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.xlsx-preview-table tr:nth-child(1) {
+  background-color: var(--color-bg-alt);
+  font-weight: bold;
+  color: var(--color-text-main);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.xlsx-preview-table tr:nth-child(even) {
+  background-color: #FAF9F6;
+}
+
+.xlsx-preview-table tr:hover {
+  background-color: var(--color-primary-light);
+}
+
+/* ── DOCX Preview Container Styles ── */
+.docx-wrapper {
+  background: var(--color-bg-surface);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+}
+
+.docx-wrapper section.docx {
+  padding: 40px !important;
+  box-shadow: none !important;
+}
+
+.docx-wrapper p {
+  margin-bottom: 0.75em;
+  line-height: 1.5;
+}
+
+.docx-wrapper table {
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+.docx-wrapper td,
+.docx-wrapper th {
+  border: 1px solid var(--color-border);
+  padding: 6px 10px;
 }

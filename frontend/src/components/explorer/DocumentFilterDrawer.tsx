@@ -32,18 +32,18 @@ export const DocumentFilterDrawer: React.FC<DocumentFilterDrawerProps> = ({
   ];
 
   return (
-    <div className="bg-brand-alt border border-brand-border p-3 mb-3 text-xs">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-brand-muted text-[11px]">
-          <Filter className="w-3.5 h-3.5" />
+    <div className="bg-brand-surface border border-brand-border rounded-lg shadow-card p-4 mb-4 text-xs">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-brand-muted text-[11px]">
+          <Filter className="w-4 h-4 text-brand-primary" />
           <span>Filtres de recherche avancée</span>
         </div>
-        <Button variant="ghost" size="sm" icon={<RotateCcw className="w-3 h-3" />} onClick={onReset}>
+        <Button variant="ghost" size="sm" icon={<RotateCcw className="w-3.5 h-3.5" />} onClick={onReset}>
           Réinitialiser
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
         {/* Mot-clé */}
         <Input
           label="Mot-clé"

@@ -5,8 +5,12 @@ import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
 import { Files, Folder, HardDrive, FileClock, Activity } from 'lucide-react';
 import { documentApi } from '../api/documentApi';
+import { DocumentPreviewModal } from '../components/explorer/DocumentPreviewModal';
+import { DocumentItem } from '../types';
 
 export const DashboardPage: React.FC = () => {
+  const [previewDocument, setPreviewDocument] = React.useState<DocumentItem | null>(null);
+
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: refApi.getDashboardStats,
@@ -30,25 +34,25 @@ export const DashboardPage: React.FC = () => {
 
       <main className="flex-1 overflow-y-auto p-6 max-w-7xl mx-auto w-full space-y-6">
         {/* Title */}
-        <div className="flex items-center justify-between border-b border-brand-border pb-3">
+        <div className="flex items-center justify-between bg-brand-surface p-4 border border-brand-border rounded-lg shadow-card">
           <div>
             <h1 className="text-base font-bold uppercase tracking-wider text-brand-text">
               Tableau de Bord — Métriques de la GED
             </h1>
-            <p className="text-xs text-brand-muted">
+            <p className="text-xs text-brand-muted mt-0.5">
               Statistiques globales issues de la base de données PostgreSQL / MinIO en temps réel
             </p>
           </div>
-          <div className="flex items-center gap-2 font-mono text-xs bg-brand-alt border border-brand-border px-3 py-1 text-brand-text">
-            <Activity className="w-3.5 h-3.5 text-emerald-600" />
+          <div className="flex items-center gap-2 font-mono text-xs bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-md text-emerald-800 font-medium">
+            <Activity className="w-4 h-4 text-emerald-600" />
             <span>Système opérationnel</span>
           </div>
         </div>
 
         {/* Global Key Metrics Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-brand-surface border border-brand-border p-4 flex items-center gap-4">
-            <div className="p-3 bg-brand-alt border border-brand-border text-brand-primary">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="bg-brand-surface border border-brand-border rounded-lg shadow-card p-5 flex items-center gap-4 hover:shadow-popover transition-shadow">
+            <div className="p-3 bg-brand-primary-light border border-brand-primary/20 text-brand-primary rounded-full">
               <Files className="w-6 h-6" />
             </div>
             <div>
@@ -61,8 +65,8 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-brand-surface border border-brand-border p-4 flex items-center gap-4">
-            <div className="p-3 bg-brand-alt border border-brand-border text-brand-text">
+          <div className="bg-brand-surface border border-brand-border rounded-lg shadow-card p-5 flex items-center gap-4 hover:shadow-popover transition-shadow">
+            <div className="p-3 bg-brand-alt border border-brand-border text-brand-text rounded-full">
               <Folder className="w-6 h-6" />
             </div>
             <div>
@@ -75,8 +79,8 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-brand-surface border border-brand-border p-4 flex items-center gap-4">
-            <div className="p-3 bg-brand-alt border border-brand-border text-amber-700">
+          <div className="bg-brand-surface border border-brand-border rounded-lg shadow-card p-5 flex items-center gap-4 hover:shadow-popover transition-shadow">
+            <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-full">
               <HardDrive className="w-6 h-6" />
             </div>
             <div>
@@ -93,110 +97,118 @@ export const DashboardPage: React.FC = () => {
         {/* Tables Grid: Recent Uploads & Recently Modified */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Uploads */}
-          <div className="bg-brand-surface border border-brand-border p-4 space-y-3">
-            <div className="flex items-center gap-2 border-b border-brand-border pb-2">
+          <div className="bg-brand-surface border border-brand-border rounded-lg shadow-card p-4 space-y-3">
+            <div className="flex items-center gap-2 border-b border-brand-border pb-2.5">
               <FileClock className="w-4 h-4 text-brand-primary" />
               <h2 className="text-xs font-bold uppercase tracking-wider text-brand-text">
                 Derniers versements
               </h2>
             </div>
 
-            <table className="w-full text-left table-dense">
-              <thead>
-                <tr>
-                  <th>Nom</th>
-                  <th>Statut</th>
-                  <th>Date</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-brand-border">
-                {stats?.recentUploads?.length === 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left table-dense">
+                <thead>
                   <tr>
-                    <td colSpan={4} className="text-center py-4 text-brand-muted italic">
-                      Aucun versement récent
-                    </td>
+                    <th>Nom</th>
+                    <th>Statut</th>
+                    <th>Date</th>
+                    <th>Action</th>
                   </tr>
-                ) : (
-                  stats?.recentUploads?.map((doc) => (
-                    <tr key={doc.id}>
-                      <td className="font-medium text-xs truncate max-w-[150px]">{doc.name}</td>
-                      <td>
-                        <Badge status={doc.status} />
-                      </td>
-                      <td className="font-mono text-[11px] text-brand-muted whitespace-nowrap">
-                        {formatDate(doc.createdAt)}
-                      </td>
-                      <td>
-                        <a
-                          href={documentApi.previewUrl(doc.id)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-brand-primary font-semibold hover:underline text-[11px]"
-                        >
-                          Voir
-                        </a>
+                </thead>
+                <tbody className="divide-y divide-brand-border font-sans">
+                  {stats?.recentUploads?.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="text-center py-4 text-brand-muted italic">
+                        Aucun versement récent
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    stats?.recentUploads?.map((doc) => (
+                      <tr key={doc.id}>
+                        <td className="font-medium text-xs truncate max-w-[150px]">{doc.name}</td>
+                        <td>
+                          <Badge status={doc.status} />
+                        </td>
+                        <td className="font-mono text-[11px] text-brand-muted whitespace-nowrap">
+                          {formatDate(doc.createdAt)}
+                        </td>
+                        <td>
+                          <button
+                            onClick={() => setPreviewDocument(doc as any)}
+                            className="text-brand-primary font-semibold hover:underline text-[11px]"
+                          >
+                            Voir
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Recently Modified */}
-          <div className="bg-brand-surface border border-brand-border p-4 space-y-3">
-            <div className="flex items-center gap-2 border-b border-brand-border pb-2">
+          <div className="bg-brand-surface border border-brand-border rounded-lg shadow-card p-4 space-y-3">
+            <div className="flex items-center gap-2 border-b border-brand-border pb-2.5">
               <Activity className="w-4 h-4 text-brand-text" />
               <h2 className="text-xs font-bold uppercase tracking-wider text-brand-text">
                 Dernières modifications
               </h2>
             </div>
 
-            <table className="w-full text-left table-dense">
-              <thead>
-                <tr>
-                  <th>Nom</th>
-                  <th>Statut</th>
-                  <th>Modifié le</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-brand-border">
-                {stats?.recentlyModified?.length === 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left table-dense">
+                <thead>
                   <tr>
-                    <td colSpan={4} className="text-center py-4 text-brand-muted italic">
-                      Aucune modification récente
-                    </td>
+                    <th>Nom</th>
+                    <th>Statut</th>
+                    <th>Modifié le</th>
+                    <th>Action</th>
                   </tr>
-                ) : (
-                  stats?.recentlyModified?.map((doc) => (
-                    <tr key={doc.id}>
-                      <td className="font-medium text-xs truncate max-w-[150px]">{doc.name}</td>
-                      <td>
-                        <Badge status={doc.status} />
-                      </td>
-                      <td className="font-mono text-[11px] text-brand-muted whitespace-nowrap">
-                        {formatDate(doc.updatedAt)}
-                      </td>
-                      <td>
-                        <a
-                          href={documentApi.previewUrl(doc.id)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-brand-primary font-semibold hover:underline text-[11px]"
-                        >
-                          Voir
-                        </a>
+                </thead>
+                <tbody className="divide-y divide-brand-border font-sans">
+                  {stats?.recentlyModified?.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="text-center py-4 text-brand-muted italic">
+                        Aucune modification récente
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    stats?.recentlyModified?.map((doc) => (
+                      <tr key={doc.id}>
+                        <td className="font-medium text-xs truncate max-w-[150px]">{doc.name}</td>
+                        <td>
+                          <Badge status={doc.status} />
+                        </td>
+                        <td className="font-mono text-[11px] text-brand-muted whitespace-nowrap">
+                          {formatDate(doc.updatedAt)}
+                        </td>
+                        <td>
+                          <button
+                            onClick={() => setPreviewDocument(doc as any)}
+                            className="text-brand-primary font-semibold hover:underline text-[11px]"
+                          >
+                            Voir
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </main>
+
+      {/* Interactive Document Preview Modal */}
+      {previewDocument && (
+        <DocumentPreviewModal
+          document={previewDocument}
+          onClose={() => setPreviewDocument(null)}
+        />
+      )}
     </div>
   );
 };

@@ -24,6 +24,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import com.awb.ged.application.port.in.folder.GetAllFoldersUseCase;
+
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
@@ -35,6 +37,7 @@ public class FolderController {
 
     private final CreateFolderUseCase createFolderUseCase;
     private final GetFolderContentUseCase getFolderContentUseCase;
+    private final GetAllFoldersUseCase getAllFoldersUseCase;
     private final DeleteFolderUseCase deleteFolderUseCase;
     private final GrantFolderPermissionUseCase grantFolderPermissionUseCase;
     private final RevokeFolderPermissionUseCase revokeFolderPermissionUseCase;
@@ -44,6 +47,7 @@ public class FolderController {
 
     public FolderController(CreateFolderUseCase createFolderUseCase,
                             GetFolderContentUseCase getFolderContentUseCase,
+                            GetAllFoldersUseCase getAllFoldersUseCase,
                             DeleteFolderUseCase deleteFolderUseCase,
                             GrantFolderPermissionUseCase grantFolderPermissionUseCase,
                             RevokeFolderPermissionUseCase revokeFolderPermissionUseCase,
@@ -52,12 +56,20 @@ public class FolderController {
                             UserRepositoryPort userRepositoryPort) {
         this.createFolderUseCase = createFolderUseCase;
         this.getFolderContentUseCase = getFolderContentUseCase;
+        this.getAllFoldersUseCase = getAllFoldersUseCase;
         this.deleteFolderUseCase = deleteFolderUseCase;
         this.grantFolderPermissionUseCase = grantFolderPermissionUseCase;
         this.revokeFolderPermissionUseCase = revokeFolderPermissionUseCase;
         this.listFolderPermissionsUseCase = listFolderPermissionsUseCase;
         this.currentUserProvider = currentUserProvider;
         this.userRepositoryPort = userRepositoryPort;
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAuthority('FOLDER_READ') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER') or hasRole('VIEWER')")
+    public ResponseEntity<List<FolderResponseDto>> getAllFolders() {
+        List<FolderResponseDto> folders = getAllFoldersUseCase.getAllFolders();
+        return ResponseEntity.ok(folders);
     }
 
     @PostMapping
@@ -93,9 +105,11 @@ public class FolderController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('FOLDER_DELETE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
-    public ResponseEntity<Void> deleteFolder(@PathVariable("id") UUID id) {
+    public ResponseEntity<Void> deleteFolder(
+            @PathVariable("id") UUID id,
+            @RequestParam(name = "force", defaultValue = "false") boolean force) {
         UUID deletedBy = resolveCurrentUserId();
-        deleteFolderUseCase.deleteFolder(id, deletedBy);
+        deleteFolderUseCase.deleteFolder(id, deletedBy, force);
         return ResponseEntity.noContent().build();
     }
 
