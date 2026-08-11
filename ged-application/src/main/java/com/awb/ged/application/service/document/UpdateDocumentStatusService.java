@@ -31,7 +31,7 @@ public class UpdateDocumentStatusService implements UpdateDocumentStatusUseCase 
 
     @Override
     public DocumentResponseDto updateStatus(UUID documentId, String newStatus, UUID currentUserId) {
-        Document document = documentRepositoryPort.findById(documentId)
+        Document document = documentRepositoryPort.findByIdIncludingDeleted(documentId)
                 .orElseThrow(() -> new NotFoundException(
                         ErrorCode.DOCUMENT_NOT_FOUND,
                         "Document with ID " + documentId + " was not found."

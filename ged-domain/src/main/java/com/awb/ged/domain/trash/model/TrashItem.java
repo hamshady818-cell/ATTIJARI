@@ -23,8 +23,10 @@ public class TrashItem {
     private UUID id;
     private String entityType; // "DOCUMENT" or "FOLDER"
     private UUID entityId;
+    private String name;
     private UUID originalFolderId;
     private UUID deletedBy;
+    private String ownerUsername;
     private Instant deletedAt;
     private Instant autoPurgeAt;
     private Instant purgedAt;

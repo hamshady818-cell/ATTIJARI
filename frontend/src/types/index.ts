@@ -1,11 +1,18 @@
 export type DocumentStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' | 'TRASHED';
 
+export interface DocumentMetadataValue {
+  definitionId?: string;
+  key: string;
+  value: string;
+}
+
 export interface UserItem {
   id: string;
   username: string;
   email: string;
   firstName?: string;
   lastName?: string;
+  departmentId?: string;
 }
 
 export interface DocumentItem {
@@ -16,10 +23,17 @@ export interface DocumentItem {
   mimeType?: string;
   folderId?: string;
   categoryId?: string;
+  categoryName?: string;
+  departmentId?: string;
+  departmentName?: string;
   ownerId: string;
+  ownerUsername?: string;
+  ownerName?: string;
+  expirationDate?: string;
   activeVersionId?: string;
   isLocked: boolean;
   tags: string[];
+  metadata?: DocumentMetadataValue[];
   createdAt: string;
   updatedAt: string;
 }
@@ -34,13 +48,32 @@ export interface DocumentSearchResult {
   folderName?: string;
   categoryId?: string;
   categoryName?: string;
+  departmentId?: string;
+  departmentName?: string;
   ownerId: string;
   ownerUsername?: string;
+  ownerName?: string;
+  expirationDate?: string;
   activeVersionId?: string;
   isLocked: boolean;
   tags: string[];
+  metadata?: DocumentMetadataValue[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface UpdateDocumentPayload {
+  newName?: string;
+  name?: string;
+  description?: string;
+  categoryId?: string;
+  departmentId?: string;
+  ownerId?: string;
+  expirationDate?: string;
+  tags?: string[];
+  metadata?: DocumentMetadataValue[];
+  newFolderId?: string;
+  moveToRoot?: boolean;
 }
 
 export interface FolderItem {
@@ -184,6 +217,7 @@ export interface TrashItemResponse {
   name?: string;
   originalFolderId?: string;
   deletedBy?: string;
+  ownerUsername?: string;
   deletedAt: string;
   autoPurgeAt?: string;
 }

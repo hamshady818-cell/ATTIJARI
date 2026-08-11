@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import java.time.LocalDate;
+
 /**
  * <h1>Document</h1>
  * <p>
@@ -23,13 +25,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class Document {
 
-    /**
-     * Document lifecycle states.
-     * DRAFT   = Only owner can see.
-     * PUBLISHED = Visible to authorized users.
-     * ARCHIVED = Read-only.
-     * TRASHED = Hidden except for restore.
-     */
+    /** Document lifecycle states. */
     public enum DocumentStatus {
         DRAFT, PUBLISHED, ARCHIVED, TRASHED
     }
@@ -56,8 +52,14 @@ public class Document {
     /** Associated document category identifier (optional) */
     private UUID categoryId;
 
+    /** Associated department identifier (optional) */
+    private UUID departmentId;
+
     /** Owner/Creator of the document */
     private UUID ownerId;
+
+    /** Expiration date of the document (optional) */
+    private LocalDate expirationDate;
 
     /** Identifier of the currently active version of the document */
     private UUID activeVersionId;

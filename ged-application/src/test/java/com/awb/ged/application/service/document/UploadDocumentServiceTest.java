@@ -33,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -91,7 +92,7 @@ class UploadDocumentServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.getName()).isEqualTo("Contract2024.pdf");
         assertThat(result.getOwnerId()).isEqualTo(ownerId);
-        verify(documentRepositoryPort).save(any(Document.class));
+        verify(documentRepositoryPort, times(2)).save(any(Document.class));
         verify(documentRepositoryPort).saveVersion(any(DocumentVersion.class));
     }
 

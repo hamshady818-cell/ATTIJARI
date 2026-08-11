@@ -87,7 +87,7 @@ public class MetadataDefinitionService implements CreateMetadataDefinitionUseCas
                 ));
 
         // Uniqueness validation on name change
-        if (!definition.getName().equals(command.getName())) {
+        if (command.getName() != null && !definition.getName().equals(command.getName())) {
             Optional<MetadataDefinition> existing = repositoryPort.findByName(command.getName());
             if (existing.isPresent()) {
                 throw new ConflictException(
@@ -97,12 +97,14 @@ public class MetadataDefinitionService implements CreateMetadataDefinitionUseCas
             }
         }
 
+        boolean targetRequired = command.getRequired() != null ? command.getRequired() : definition.isRequired();
+
         MetadataDefinition updated = definition.toBuilder()
-                .name(command.getName())
-                .label(command.getLabel())
-                .type(command.getType())
-                .required(command.isRequired())
-                .validationPattern(command.getValidationPattern())
+                .name(command.getName() != null ? command.getName() : definition.getName())
+                .label(command.getLabel() != null ? command.getLabel() : definition.getLabel())
+                .type(command.getType() != null ? command.getType() : definition.getType())
+                .required(targetRequired)
+                .validationPattern(command.getValidationPattern() != null ? command.getValidationPattern() : definition.getValidationPattern())
                 .updatedAt(Instant.now())
                 .build();
 

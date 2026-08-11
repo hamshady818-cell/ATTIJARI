@@ -3,6 +3,7 @@ import { DocumentItem, DocumentSearchResult, DocumentVersion } from '../../types
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { documentApi } from '../../api/documentApi';
+import { EditDocumentModal } from './EditDocumentModal';
 import {
   X,
   FileText,
@@ -18,6 +19,9 @@ import {
   CheckCircle,
   AlertCircle,
   ExternalLink,
+  Edit3,
+  Building2,
+  Tag as TagIcon,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -35,6 +39,14 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
   onPreview,
 }) => {
   const [activeTab, setActiveTab] = useState<'info' | 'versions' | 'status'>('info');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [currentDocument, setCurrentDocument] = useState<DocumentItem | DocumentSearchResult | null>(document);
+
+  React.useEffect(() => {
+    setCurrentDocument(document);
+  }, [document]);
+
+  const doc = (currentDocument || document)!;
   const [newVersionFile, setNewVersionFile] = useState<File | null>(null);
   const [changeSummary, setChangeSummary] = useState('');
   const [isUploadingVersion, setIsUploadingVersion] = useState(false);
@@ -53,7 +65,7 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
   });
 
   // Le verrou actif combine l'état de polling (temps réel) + l'état initial du document
-  const isCurrentlyLocked = lockStatus?.locked ?? document?.isLocked ?? false;
+  const isCurrentlyLocked = lockStatus?.locked ?? document?.isLocked ?? (document as any)?.locked ?? false;
 
   // Query Version history
   const { data: versions = [], refetch: refetchVersions } = useQuery<DocumentVersion[]>({
@@ -64,11 +76,23 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
 
   if (!document) return null;
 
+  const buildVersionedFilename = (name: string, versionId?: string): string => {
+    if (!versionId) return name;
+    const lastDotIndex = name.lastIndexOf('.');
+    const shortVersion = versionId.substring(0, 8);
+    if (lastDotIndex === -1) {
+      return `${name}_v${shortVersion}`;
+    }
+    const baseName = name.slice(0, lastDotIndex);
+    const extension = name.slice(lastDotIndex);
+    return `${baseName}_v${shortVersion}${extension}`;
+  };
+
   // ── Téléchargement sécurisé avec jeton Keycloak Bearer via apiClient
   const handleSecureDownload = async (docId: string, versionId?: string) => {
     setDownloadError(null);
     try {
-      const filename = document.name + (versionId ? `_v${versionId.substring(0, 8)}` : '');
+      const filename = buildVersionedFilename(document.name, versionId);
       await documentApi.downloadFile(docId, filename, versionId);
     } catch (err: any) {
       setDownloadError(err.response?.data?.message || err.message || 'Échec du téléchargement');
@@ -246,6 +270,16 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
               >
                 Télécharger
               </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<Edit3 className="w-3.5 h-3.5" />}
+                className="w-full flex-1 text-brand-primary border-brand-primary/40 hover:bg-brand-primary/10"
+                onClick={() => setIsEditModalOpen(true)}
+              >
+                Modifier
+              </Button>
             </div>
 
             {/* Message d'erreur téléchargement */}
@@ -258,29 +292,65 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
 
             {/* General Properties */}
             <div className="border border-brand-border p-3.5 space-y-2.5 bg-brand-surface rounded-lg shadow-card">
-              <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted border-b border-brand-border pb-1.5">
-                Propriétés Générales
-              </h4>
+              <div className="flex items-center justify-between border-b border-brand-border pb-1.5">
+                <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted">
+                  Propriétés Générales
+                </h4>
+                <button
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="text-[11px] text-brand-primary font-bold hover:underline flex items-center gap-1"
+                >
+                  <Edit3 className="w-3 h-3" /> Modifier les propriétés
+                </button>
+              </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
                   <span className="text-brand-muted block text-[10px] uppercase font-semibold">Statut</span>
-                  <Badge status={document.status} />
+                  <Badge status={doc.status} />
                 </div>
 
                 <div>
                   <span className="text-brand-muted block text-[10px] uppercase font-semibold">Format / MIME</span>
-                  <span className="font-mono text-brand-text">{document.mimeType || 'Standard'}</span>
+                  <span className="font-mono text-brand-text">{doc.mimeType || 'Standard'}</span>
+                </div>
+
+                <div>
+                  <span className="text-brand-muted block text-[10px] uppercase font-semibold">Catégorie</span>
+                  <span className="font-medium text-brand-text">
+                    {(doc as any).categoryName || 'Non catégorisé'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-brand-muted block text-[10px] uppercase font-semibold">Département</span>
+                  <span className="font-medium text-brand-text">
+                    {(doc as any).departmentName || 'Tous départements'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-brand-muted block text-[10px] uppercase font-semibold">Responsable</span>
+                  <span className="font-medium text-brand-text">
+                    {(doc as any).ownerName || (doc as any).ownerUsername || doc.ownerId || '-'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-brand-muted block text-[10px] uppercase font-semibold">Date d'expiration</span>
+                  <span className="font-mono text-brand-text">
+                    {(doc as any).expirationDate || '-'}
+                  </span>
                 </div>
 
                 <div>
                   <span className="text-brand-muted block text-[10px] uppercase font-semibold">Créé le</span>
-                  <span className="font-mono text-brand-text">{formatDate(document.createdAt)}</span>
+                  <span className="font-mono text-brand-text">{formatDate(doc.createdAt)}</span>
                 </div>
 
                 <div>
                   <span className="text-brand-muted block text-[10px] uppercase font-semibold">Modifié le</span>
-                  <span className="font-mono text-brand-text">{formatDate(document.updatedAt)}</span>
+                  <span className="font-mono text-brand-text">{formatDate(doc.updatedAt)}</span>
                 </div>
               </div>
             </div>
@@ -291,7 +361,7 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
                 Description & Notes
               </h4>
               <p className="text-brand-text italic">
-                {document.description || 'Aucune description renseignée.'}
+                {doc.description || 'Aucune description renseignée.'}
               </p>
             </div>
 
@@ -301,13 +371,30 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
                 Étiquettes (Tags)
               </h4>
               <div className="flex flex-wrap gap-1.5">
-                {document.tags && document.tags.length > 0 ? (
-                  document.tags.map((t) => <Badge key={t} variant="tag">{t}</Badge>)
+                {doc.tags && doc.tags.length > 0 ? (
+                  doc.tags.map((t) => <Badge key={t} variant="tag">{t}</Badge>)
                 ) : (
                   <span className="text-brand-muted italic">Aucun tag</span>
                 )}
               </div>
             </div>
+
+            {/* Dynamic Metadata */}
+            {(doc as any).metadata && (doc as any).metadata.length > 0 && (
+              <div className="border border-brand-border p-3.5 bg-brand-surface rounded-lg shadow-card">
+                <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted border-b border-brand-border pb-1.5 mb-2">
+                  Métadonnées dynamiques
+                </h4>
+                <div className="space-y-1.5">
+                  {(doc as any).metadata.map((meta: any, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between text-xs py-1 border-b border-brand-border/40 last:border-0">
+                      <span className="text-brand-muted font-medium">{meta.key}</span>
+                      <span className="font-semibold text-brand-text">{meta.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -482,6 +569,19 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
           </div>
         )}
       </div>
+
+      {/* Edit Document Properties Modal */}
+      <EditDocumentModal
+        document={doc!}
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSuccess={(updatedDoc) => {
+          setCurrentDocument(updatedDoc);
+          onRefresh();
+          queryClient.invalidateQueries({ queryKey: ['folder-content'] });
+          queryClient.invalidateQueries({ queryKey: ['search-documents'] });
+        }}
+      />
     </div>
   );
 };

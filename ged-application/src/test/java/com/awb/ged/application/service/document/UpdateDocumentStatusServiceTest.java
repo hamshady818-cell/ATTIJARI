@@ -48,7 +48,7 @@ class UpdateDocumentStatusServiceTest {
                 .status(Document.DocumentStatus.DRAFT)
                 .build();
 
-        given(documentRepositoryPort.findById(docId)).willReturn(Optional.of(draftDoc));
+        given(documentRepositoryPort.findByIdIncludingDeleted(docId)).willReturn(Optional.of(draftDoc));
         given(documentRepositoryPort.save(any(Document.class))).willAnswer(inv -> inv.getArgument(0));
 
         // When
@@ -57,6 +57,31 @@ class UpdateDocumentStatusServiceTest {
         // Then
         assertThat(result).isNotNull();
         assertThat(result.getStatus()).isEqualTo("PUBLISHED");
+    }
+
+    @Test
+    @DisplayName("Should successfully restore document TRASHED -> DRAFT")
+    void updateStatus_TrashedToDraft_Success() {
+        // Given
+        UUID docId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        Document trashedDoc = Document.builder()
+                .id(docId)
+                .name("TrashedReport.pdf")
+                .status(Document.DocumentStatus.TRASHED)
+                .deletedAt(java.time.Instant.now())
+                .deletedBy(userId)
+                .build();
+
+        given(documentRepositoryPort.findByIdIncludingDeleted(docId)).willReturn(Optional.of(trashedDoc));
+        given(documentRepositoryPort.save(any(Document.class))).willAnswer(inv -> inv.getArgument(0));
+
+        // When
+        DocumentResponseDto result = updateDocumentStatusService.updateStatus(docId, "DRAFT", userId);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getStatus()).isEqualTo("DRAFT");
     }
 
     @Test
@@ -71,7 +96,7 @@ class UpdateDocumentStatusServiceTest {
                 .status(Document.DocumentStatus.ARCHIVED)
                 .build();
 
-        given(documentRepositoryPort.findById(docId)).willReturn(Optional.of(archivedDoc));
+        given(documentRepositoryPort.findByIdIncludingDeleted(docId)).willReturn(Optional.of(archivedDoc));
 
         // When / Then
         assertThatThrownBy(() -> updateDocumentStatusService.updateStatus(docId, "PUBLISHED", userId))

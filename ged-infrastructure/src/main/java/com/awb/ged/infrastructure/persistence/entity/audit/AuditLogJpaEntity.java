@@ -8,6 +8,7 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
+import org.springframework.data.domain.Persistable;
 
 import java.net.InetAddress;
 import java.time.Instant;
@@ -59,16 +60,30 @@ import java.util.UUID;
                 @Index(name = "idx_audit_occurred_at",    columnList = "occurred_at DESC")
         }
 )
-public class AuditLogJpaEntity {
+public class AuditLogJpaEntity implements Persistable<UUID> {
 
     /**
      * Unique identifier for this log entry.
-     * Generated independently (not via {@code BaseEntity}) to avoid {@code @PreUpdate}.
      */
     @Id
     @UuidGenerator
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
+
+    @Transient
+    @Builder.Default
+    private boolean isNew = true;
+
+    @Override
+    public boolean isNew() {
+        return isNew;
+    }
+
+    @PostLoad
+    @PostPersist
+    protected void markNotNew() {
+        this.isNew = false;
+    }
 
     /**
      * User who performed the action.

@@ -23,6 +23,10 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.awb.ged.infrastructure.persistence.entity.category.CategoryJpaEntity;
+import com.awb.ged.infrastructure.persistence.entity.department.DepartmentJpaEntity;
+import com.awb.ged.infrastructure.persistence.repository.*;
+
 @Component
 @Transactional
 public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
@@ -33,19 +37,25 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
     private final FolderJpaRepository folderJpaRepository;
     private final UserJpaRepository userJpaRepository;
     private final TagJpaRepository tagJpaRepository;
+    private final CategoryJpaRepository categoryJpaRepository;
+    private final DepartmentJpaRepository departmentJpaRepository;
 
     public DocumentRepositoryAdapter(DocumentJpaRepository documentJpaRepository,
                                      DocumentVersionJpaRepository documentVersionJpaRepository,
                                      DocumentCheckoutJpaRepository documentCheckoutJpaRepository,
                                      FolderJpaRepository folderJpaRepository,
                                      UserJpaRepository userJpaRepository,
-                                     TagJpaRepository tagJpaRepository) {
+                                     TagJpaRepository tagJpaRepository,
+                                     CategoryJpaRepository categoryJpaRepository,
+                                     DepartmentJpaRepository departmentJpaRepository) {
         this.documentJpaRepository = documentJpaRepository;
         this.documentVersionJpaRepository = documentVersionJpaRepository;
         this.documentCheckoutJpaRepository = documentCheckoutJpaRepository;
         this.folderJpaRepository = folderJpaRepository;
         this.userJpaRepository = userJpaRepository;
         this.tagJpaRepository = tagJpaRepository;
+        this.categoryJpaRepository = categoryJpaRepository;
+        this.departmentJpaRepository = departmentJpaRepository;
     }
 
     // --- Document CRUD ---
@@ -200,6 +210,7 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
                 .checkedOutBy(user)
                 .checkedOutAt(Instant.now())
                 .build();
+        checkout.setId(UUID.randomUUID());
 
         documentCheckoutJpaRepository.save(checkout);
     }
@@ -304,6 +315,14 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
                         .build())
                 .toList();
 
+        List<DocumentMetadataValue> metadata = entity.getMetadata().stream()
+                .map(m -> DocumentMetadataValue.builder()
+                        .definitionId(m.getDefinition() != null ? m.getDefinition().getId() : null)
+                        .key(m.getDefinition() != null ? (m.getDefinition().getFieldName() != null ? m.getDefinition().getFieldName() : m.getDefinition().getDisplayLabel()) : null)
+                        .value(m.getValueText())
+                        .build())
+                .toList();
+
         // Map status from JPA enum to domain enum
         Document.DocumentStatus domainStatus = Document.DocumentStatus.DRAFT;
         if (entity.getStatus() != null) {
@@ -319,10 +338,13 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
                 .status(domainStatus)
                 .mimeType(entity.getMimeType())
                 .folderId(entity.getFolder() != null ? entity.getFolder().getId() : null)
-                .categoryId(null)
+                .categoryId(entity.getCategory() != null ? entity.getCategory().getId() : null)
+                .departmentId(entity.getDepartment() != null ? entity.getDepartment().getId() : null)
                 .ownerId(entity.getOwner() != null ? entity.getOwner().getId() : null)
+                .expirationDate(entity.getExpirationDate())
                 .activeVersionId(entity.getCurrentVersion() != null ? entity.getCurrentVersion().getId() : null)
                 .lock(lock)
+                .metadata(new ArrayList<>(metadata))
                 .tags(new ArrayList<>(tags))
                 .createdAt(entity.getCreatedAt())
                 .deletedAt(entity.getDeletedAt())
@@ -347,8 +369,13 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
                 .mimeType(entity.getMimeType())
                 .folderId(entity.getFolder() != null ? entity.getFolder().getId() : null)
                 .folderName(entity.getFolder() != null ? entity.getFolder().getName() : null)
+                .categoryId(entity.getCategory() != null ? entity.getCategory().getId() : null)
+                .categoryName(entity.getCategory() != null ? entity.getCategory().getName() : null)
+                .departmentId(entity.getDepartment() != null ? entity.getDepartment().getId() : null)
+                .departmentName(entity.getDepartment() != null ? entity.getDepartment().getName() : null)
                 .ownerId(entity.getOwner() != null ? entity.getOwner().getId() : null)
                 .ownerUsername(entity.getOwner() != null ? entity.getOwner().getUsername() : null)
+                .expirationDate(entity.getExpirationDate())
                 .activeVersionId(entity.getCurrentVersion() != null ? entity.getCurrentVersion().getId() : null)
                 .isLocked(locked)
                 .tags(tagNames)
@@ -365,6 +392,8 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
         FolderJpaEntity folder = resolveFolderEntity(domain.getFolderId());
         UserJpaEntity owner = resolveUserEntity(domain.getOwnerId());
         DocumentVersionJpaEntity currentVersion = resolveVersionEntity(domain.getActiveVersionId());
+        CategoryJpaEntity category = domain.getCategoryId() != null ? categoryJpaRepository.findById(domain.getCategoryId()).orElse(null) : null;
+        DepartmentJpaEntity department = domain.getDepartmentId() != null ? departmentJpaRepository.findById(domain.getDepartmentId()).orElse(null) : null;
         Set<TagJpaEntity> tags = resolveTagEntities(domain);
         UserJpaEntity deleter = resolveUserEntity(domain.getDeletedBy());
         DocumentJpaEntity.DocumentStatus jpaStatus = resolveJpaStatus(domain.getStatus());
@@ -375,9 +404,12 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
                 .status(jpaStatus)
                 .mimeType(domain.getMimeType())
                 .folder(folder)
+                .category(category)
+                .department(department)
                 .owner(owner)
                 .createdBy(owner)
                 .updatedBy(owner)
+                .expirationDate(domain.getExpirationDate())
                 .deleted(domain.isDeleted())
                 .deletedAt(domain.getDeletedAt())
                 .deletedBy(deleter)
@@ -391,7 +423,7 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
 
     /**
      * Applies domain changes to an existing managed JPA entity for UPDATE operations.
-     * Only mutable fields are updated — immutable fields (owner, createdBy, etc.) are preserved.
+     * Only mutable fields are updated — immutable fields (createdBy, etc.) are preserved.
      * This pattern avoids Hibernate NonUniqueObjectException.
      */
     private void applyDomainToEntity(Document domain, DocumentJpaEntity entity) {
@@ -399,6 +431,31 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
         if (domain.getName() != null) entity.setTitle(domain.getName());
         if (domain.getDescription() != null) entity.setDescription(domain.getDescription());
         if (domain.getMimeType() != null) entity.setMimeType(domain.getMimeType());
+
+        // Category
+        if (domain.getCategoryId() != null) {
+            entity.setCategory(categoryJpaRepository.findById(domain.getCategoryId()).orElse(null));
+        } else {
+            entity.setCategory(null);
+        }
+
+        // Department
+        if (domain.getDepartmentId() != null) {
+            entity.setDepartment(departmentJpaRepository.findById(domain.getDepartmentId()).orElse(null));
+        } else {
+            entity.setDepartment(null);
+        }
+
+        // Owner (Responsable)
+        if (domain.getOwnerId() != null) {
+            UserJpaEntity owner = resolveUserEntity(domain.getOwnerId());
+            if (owner != null) {
+                entity.setOwner(owner);
+            }
+        }
+
+        // Expiration Date
+        entity.setExpirationDate(domain.getExpirationDate());
 
         // Status
         DocumentJpaEntity.DocumentStatus jpaStatus = resolveJpaStatus(domain.getStatus());
@@ -446,7 +503,17 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
         Set<TagJpaEntity> tags = new HashSet<>();
         if (domain.getTags() != null) {
             for (DocumentTag tagDomain : domain.getTags()) {
-                tagJpaRepository.findByName(tagDomain.getName()).ifPresent(tags::add);
+                if (tagDomain.getName() != null) {
+                    String tagName = tagDomain.getName().trim();
+                    if (!tagName.isEmpty()) {
+                        TagJpaEntity tagEntity = tagJpaRepository.findByName(tagName)
+                                .orElseGet(() -> tagJpaRepository.save(TagJpaEntity.builder()
+                                        .name(tagName)
+                                        .color("#0070B8")
+                                        .build()));
+                        tags.add(tagEntity);
+                    }
+                }
             }
         }
         return tags;
@@ -528,3 +595,5 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
         return entity;
     }
 }
+
+

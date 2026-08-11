@@ -48,7 +48,7 @@ public class AuditLogRepositoryAdapter implements AuditLogPort, AuditLogReposito
         String userAgent = extractUserAgent();
 
         AuditLogJpaEntity auditLog = AuditLogJpaEntity.builder()
-                .id(UUID.randomUUID())
+                .isNew(true)
                 .user(userEntity)
                 .action(action)
                 .entityType(entityType)

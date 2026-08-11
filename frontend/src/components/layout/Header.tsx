@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { FolderTree, LayoutDashboard, Trash2, Search, ShieldCheck, ChevronDown, LogOut, User } from 'lucide-react';
 import { NotificationPanel } from './NotificationPanel';
 import { AttijariLogo } from '../ui/AttijariLogo';
-import keycloak from '../../lib/keycloak';
+import { useAuth } from '../../context/AuthContext';
 
 interface HeaderProps {
   onSearchChange?: (val: string) => void;
@@ -13,17 +13,14 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onSearchChange, searchValue = '' }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const { user, logout } = useAuth();
 
-  // Nom réel de l'utilisateur extrait du token Keycloak
-  const username =
-    keycloak.tokenParsed?.preferred_username ||
-    keycloak.tokenParsed?.name ||
-    keycloak.tokenParsed?.email ||
-    'Agent GED';
-  const email = keycloak.tokenParsed?.email || '';
+  // Nom réel de l'utilisateur extrait du token Keycloak via AuthContext
+  const username = user?.name || user?.username || 'Agent GED';
+  const email = user?.email || '';
 
   const handleLogout = () => {
-    keycloak.logout({ redirectUri: window.location.origin });
+    logout();
   };
 
   // Fermeture du menu déroulant si clic à l'extérieur

@@ -51,6 +51,7 @@ public class RestoreFromTrashService implements RestoreFromTrashUseCase {
                     ));
             doc.setDeletedAt(null);
             doc.setDeletedBy(null);
+            doc.setStatus(Document.DocumentStatus.DRAFT);
             documentRepositoryPort.save(doc);
         } else if ("FOLDER".equals(type)) {
             Folder folder = folderRepositoryPort.findByIdIncludingDeleted(item.getEntityId())

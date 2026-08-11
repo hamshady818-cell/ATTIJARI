@@ -1,6 +1,7 @@
 package com.awb.ged.infrastructure.persistence.entity.document;
 
 import com.awb.ged.infrastructure.persistence.entity.category.CategoryJpaEntity;
+import com.awb.ged.infrastructure.persistence.entity.department.DepartmentJpaEntity;
 import com.awb.ged.infrastructure.persistence.entity.folder.FolderJpaEntity;
 import com.awb.ged.infrastructure.persistence.entity.metadata.DocumentMetadataJpaEntity;
 import com.awb.ged.infrastructure.persistence.entity.shared.BaseEntity;
@@ -154,6 +155,32 @@ public class DocumentJpaEntity extends BaseEntity {
      */
     @Column(name = "retention_until")
     private LocalDate retentionUntil;
+
+    /**
+     * Optional document expiration date.
+     */
+    @Column(name = "expiration_date")
+    private LocalDate expirationDate;
+
+    /**
+     * Primary category of this document.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "category_id",
+            foreignKey = @ForeignKey(name = "fk_documents_category")
+    )
+    private CategoryJpaEntity category;
+
+    /**
+     * Department associated with this document.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "department_id",
+            foreignKey = @ForeignKey(name = "fk_documents_department")
+    )
+    private DepartmentJpaEntity department;
 
     /**
      * Timestamp of soft-deletion. Null if the document is not deleted.

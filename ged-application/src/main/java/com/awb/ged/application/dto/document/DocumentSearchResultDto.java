@@ -6,6 +6,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -26,11 +28,18 @@ public class DocumentSearchResultDto {
     private String folderName;
     private UUID categoryId;
     private String categoryName;
+    private UUID departmentId;
+    private String departmentName;
     private UUID ownerId;
     private String ownerUsername;
+    private LocalDate expirationDate;
     private UUID activeVersionId;
     private boolean isLocked;
-    private java.util.List<String> tags;
+    private List<String> tags;
     private Instant createdAt;
     private Instant updatedAt;
+
+    public boolean getIsLocked() {
+        return isLocked;
+    }
 }

@@ -12,12 +12,20 @@ import org.mapstruct.Named;
 
 import java.util.List;
 
+import com.awb.ged.application.dto.document.DocumentMetadataValueDto;
+import com.awb.ged.domain.document.model.DocumentMetadataValue;
+
 @Mapper(componentModel = "spring")
 public interface DocumentMapper {
 
     @Mapping(target = "isLocked", expression = "java(domain.getLock() != null)")
     @Mapping(target = "tags", source = "tags", qualifiedByName = "mapTagsToStrings")
     @Mapping(target = "status", source = "status", qualifiedByName = "statusToString")
+    @Mapping(target = "metadata", source = "metadata", qualifiedByName = "mapMetadataToDtos")
+    @Mapping(target = "categoryName", ignore = true)
+    @Mapping(target = "departmentName", ignore = true)
+    @Mapping(target = "ownerUsername", ignore = true)
+    @Mapping(target = "ownerName", ignore = true)
     DocumentResponseDto toResponseDto(Document domain);
 
     @Mapping(target = "fileReferenceId", source = "fileReferenceId", qualifiedByName = "fileReferenceToString")
@@ -44,5 +52,17 @@ public interface DocumentMapper {
     @Named("statusToString")
     default String statusToString(Document.DocumentStatus status) {
         return status != null ? status.name() : Document.DocumentStatus.DRAFT.name();
+    }
+
+    @Named("mapMetadataToDtos")
+    default List<DocumentMetadataValueDto> mapMetadataToDtos(List<DocumentMetadataValue> metadata) {
+        if (metadata == null) return List.of();
+        return metadata.stream()
+                .map(m -> DocumentMetadataValueDto.builder()
+                        .definitionId(m.getDefinitionId())
+                        .key(m.getKey())
+                        .value(m.getValue())
+                        .build())
+                .toList();
     }
 }

@@ -5,6 +5,8 @@ import com.awb.ged.application.port.out.persistence.DocumentRepositoryPort;
 import com.awb.ged.application.port.out.persistence.FolderRepositoryPort;
 import com.awb.ged.common.exception.ErrorCode;
 import com.awb.ged.common.exception.NotFoundException;
+import com.awb.ged.application.port.out.event.EventPublisherPort;
+import com.awb.ged.domain.document.event.DocumentDeletedEvent;
 import com.awb.ged.domain.document.model.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -20,12 +22,20 @@ public class BulkDocumentActionService implements BulkDocumentActionUseCase {
 
     private final DocumentRepositoryPort documentRepositoryPort;
     private final FolderRepositoryPort folderRepositoryPort;
+    private final EventPublisherPort eventPublisherPort;
 
     @Autowired
     public BulkDocumentActionService(DocumentRepositoryPort documentRepositoryPort,
-                                     FolderRepositoryPort folderRepositoryPort) {
+                                     FolderRepositoryPort folderRepositoryPort,
+                                     EventPublisherPort eventPublisherPort) {
         this.documentRepositoryPort = documentRepositoryPort;
         this.folderRepositoryPort = folderRepositoryPort;
+        this.eventPublisherPort = eventPublisherPort;
+    }
+
+    public BulkDocumentActionService(DocumentRepositoryPort documentRepositoryPort,
+                                     FolderRepositoryPort folderRepositoryPort) {
+        this(documentRepositoryPort, folderRepositoryPort, null);
     }
 
     @Override
@@ -40,6 +50,15 @@ public class BulkDocumentActionService implements BulkDocumentActionUseCase {
                         .updatedAt(now)
                         .build();
                 documentRepositoryPort.save(deleted);
+
+                if (eventPublisherPort != null) {
+                    eventPublisherPort.publish(new DocumentDeletedEvent(
+                            deleted.getId(),
+                            deleted.getName(),
+                            deleted.getFolderId(),
+                            deleted.getDeletedBy()
+                    ));
+                }
             });
         }
     }

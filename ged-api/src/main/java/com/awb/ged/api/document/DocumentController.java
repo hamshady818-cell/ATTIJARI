@@ -13,6 +13,7 @@ import com.awb.ged.common.security.CurrentUser;
 import com.awb.ged.domain.user.model.User;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -361,7 +362,7 @@ public class DocumentController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAuthority('DOCUMENT_WRITE') or hasRole('ADMIN') or hasRole('MANAGER')")
+    @PreAuthorize("hasAuthority('DOCUMENT_WRITE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
     public ResponseEntity<DocumentResponseDto> updateStatus(
             @PathVariable("id") UUID id,
             @RequestParam("status") String status) {
@@ -376,6 +377,30 @@ public class DocumentController {
         UUID currentUserId = resolveCurrentUserId();
         deleteDocumentUseCase.deleteDocument(id, currentUserId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasAuthority('DOCUMENT_WRITE') or hasRole('TRASH_RESTORE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    public ResponseEntity<DocumentResponseDto> restoreDocument(@PathVariable("id") UUID id) {
+        UUID currentUserId = resolveCurrentUserId();
+        DocumentResponseDto restored = updateDocumentStatusUseCase.updateStatus(id, "DRAFT", currentUserId);
+        return ResponseEntity.ok(restored);
+    }
+
+    @GetMapping("/trash")
+    @PreAuthorize("hasAuthority('DOCUMENT_READ') or hasRole('TRASH_READ') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    public ResponseEntity<com.awb.ged.common.model.PageResponse<DocumentSearchResultDto>> getDocumentTrash(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        DocumentSearchQuery query = DocumentSearchQuery.builder()
+                .status("TRASHED")
+                .page(page)
+                .size(size)
+                .sortBy("deletedAt")
+                .sortDirection("DESC")
+                .build();
+        com.awb.ged.common.model.PageResponse<DocumentSearchResultDto> results = searchDocumentsUseCase.search(query);
+        return ResponseEntity.ok(results);
     }
 
     // =========================================================================
@@ -518,7 +543,13 @@ public class DocumentController {
                             .createdAt(Instant.now())
                             .updatedAt(Instant.now())
                             .build();
-                    return userRepositoryPort.save(newUser).getId();
+                    try {
+                        return userRepositoryPort.save(newUser).getId();
+                    } catch (DataIntegrityViolationException e) {
+                        return userRepositoryPort.findByKeycloakSub(currentUser.getKeycloakSub())
+                                .map(User::getId)
+                                .orElseThrow(() -> e);
+                    }
                 });
     }
 

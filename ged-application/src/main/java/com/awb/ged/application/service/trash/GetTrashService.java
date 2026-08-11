@@ -4,6 +4,7 @@ import com.awb.ged.application.dto.trash.TrashItemResponseDto;
 import com.awb.ged.application.mapper.TrashMapper;
 import com.awb.ged.application.port.in.trash.GetTrashUseCase;
 import com.awb.ged.application.port.out.persistence.TrashRepositoryPort;
+import com.awb.ged.common.model.PageResponse;
 import com.awb.ged.domain.trash.model.TrashItem;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -26,13 +27,27 @@ public class GetTrashService implements GetTrashUseCase {
     }
 
     @Override
-    public List<TrashItemResponseDto> getTrash(UUID userId, boolean isAdminOrManager) {
-        List<TrashItem> items = isAdminOrManager
-                ? trashRepositoryPort.findAllActive()
-                : trashRepositoryPort.findByDeletedByAndPurgedAtIsNull(userId);
+    public PageResponse<TrashItemResponseDto> getTrash(UUID userId, boolean isAdminOrManager, int page, int size) {
+        int validPage = Math.max(0, page);
+        int validSize = size <= 0 ? 10 : Math.min(100, size);
 
-        return items.stream()
+        PageResponse<TrashItem> domainPage = trashRepositoryPort.findTrash(userId, isAdminOrManager, validPage, validSize);
+
+        List<TrashItemResponseDto> dtoList = domainPage.getContent().stream()
                 .map(trashMapper::toResponseDto)
                 .toList();
+
+        return PageResponse.<TrashItemResponseDto>builder()
+                .content(dtoList)
+                .pageNumber(domainPage.getPageNumber())
+                .pageSize(domainPage.getPageSize())
+                .totalElements(domainPage.getTotalElements())
+                .totalPages(domainPage.getTotalPages())
+                .sortBy(domainPage.getSortBy())
+                .sortDirection(domainPage.getSortDirection())
+                .first(domainPage.isFirst())
+                .last(domainPage.isLast())
+                .empty(domainPage.isEmpty())
+                .build();
     }
 }

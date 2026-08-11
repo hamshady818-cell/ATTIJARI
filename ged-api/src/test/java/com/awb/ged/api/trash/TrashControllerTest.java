@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.awb.ged.common.model.PageResponse;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -80,7 +82,7 @@ class TrashControllerTest {
 
     @Test
     @WithMockUser(authorities = "TRASH_READ")
-    @DisplayName("GET /api/v1/trash - Should return 200 OK with trash items list")
+    @DisplayName("GET /api/v1/trash - Should return 200 OK with paginated trash items")
     void getTrash_Success() throws Exception {
         // Given
         TrashItemResponseDto item = TrashItemResponseDto.builder()
@@ -91,13 +93,30 @@ class TrashControllerTest {
                 .deletedAt(Instant.now())
                 .build();
 
-        given(getTrashUseCase.getTrash(any(), anyBoolean())).willReturn(List.of(item));
+        PageResponse<TrashItemResponseDto> pageResponse = PageResponse.<TrashItemResponseDto>builder()
+                .content(List.of(item))
+                .pageNumber(0)
+                .pageSize(10)
+                .totalElements(1)
+                .totalPages(1)
+                .first(true)
+                .last(true)
+                .empty(false)
+                .build();
+
+        given(getTrashUseCase.getTrash(any(), anyBoolean(), anyInt(), anyInt())).willReturn(pageResponse);
 
         // When / Then
-        mockMvc.perform(get("/api/v1/trash"))
+        mockMvc.perform(get("/api/v1/trash")
+                        .param("page", "0")
+                        .param("size", "10"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].entityType").value("DOCUMENT"));
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content[0].entityType").value("DOCUMENT"))
+                .andExpect(jsonPath("$.pageNumber").value(0))
+                .andExpect(jsonPath("$.pageSize").value(10))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
     }
 
     @Test

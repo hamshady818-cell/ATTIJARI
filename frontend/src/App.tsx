@@ -5,6 +5,7 @@ import { ExplorerPage } from './pages/ExplorerPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { TrashPage } from './pages/TrashPage';
 import { LoginPage } from './pages/LoginPage';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,9 +21,30 @@ export const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<ExplorerPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/trash" element={<TrashPage />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <ExplorerPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/trash"
+            element={
+              <ProtectedRoute>
+                <TrashPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/login" element={<LoginPage />} />
         </Routes>
       </BrowserRouter>

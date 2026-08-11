@@ -7,6 +7,7 @@ import {
   PageResponse,
   SearchFilterParams,
   DocumentStatus,
+  UpdateDocumentPayload,
 } from '../types';
 
 export const documentApi = {
@@ -107,10 +108,10 @@ export const documentApi = {
     return res.data;
   },
 
-  // Rename / Move
+  // Update Document Properties / Location
   update: async (
     id: string,
-    data: { newName?: string; description?: string; newFolderId?: string; moveToRoot?: boolean }
+    data: UpdateDocumentPayload
   ): Promise<DocumentItem> => {
     const res = await apiClient.patch<DocumentItem>(`/documents/${id}`, data);
     return res.data;

@@ -1,5 +1,6 @@
 package com.awb.ged.application.port.out.persistence;
 
+import com.awb.ged.common.model.PageResponse;
 import com.awb.ged.domain.trash.model.TrashItem;
 
 import java.util.List;
@@ -15,6 +16,8 @@ public interface TrashRepositoryPort {
     List<TrashItem> findByDeletedByAndPurgedAtIsNull(UUID userId);
 
     List<TrashItem> findAllActive();
+
+    PageResponse<TrashItem> findTrash(UUID userId, boolean isAdminOrManager, int page, int size);
 
     void delete(UUID id);
 }

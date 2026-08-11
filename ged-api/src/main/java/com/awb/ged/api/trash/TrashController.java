@@ -5,9 +5,11 @@ import com.awb.ged.application.port.in.security.CurrentUserProvider;
 import com.awb.ged.application.port.in.trash.GetTrashUseCase;
 import com.awb.ged.application.port.in.trash.RestoreFromTrashUseCase;
 import com.awb.ged.application.port.out.persistence.UserRepositoryPort;
+import com.awb.ged.common.model.PageResponse;
 import com.awb.ged.common.security.CurrentUser;
 import com.awb.ged.domain.user.model.User;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -40,11 +42,13 @@ public class TrashController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('TRASH_READ') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
-    public ResponseEntity<List<TrashItemResponseDto>> getTrash() {
+    public ResponseEntity<PageResponse<TrashItemResponseDto>> getTrash(
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size) {
         UUID userId = resolveCurrentUserId();
         boolean isAdminOrManager = checkIsAdminOrManager();
 
-        List<TrashItemResponseDto> trash = getTrashUseCase.getTrash(userId, isAdminOrManager);
+        PageResponse<TrashItemResponseDto> trash = getTrashUseCase.getTrash(userId, isAdminOrManager, page, size);
         return ResponseEntity.ok(trash);
     }
 
@@ -79,7 +83,13 @@ public class TrashController {
                             .createdAt(Instant.now())
                             .updatedAt(Instant.now())
                             .build();
-                    return userRepositoryPort.save(newUser).getId();
+                    try {
+                        return userRepositoryPort.save(newUser).getId();
+                    } catch (DataIntegrityViolationException e) {
+                        return userRepositoryPort.findByKeycloakSub(currentUser.getKeycloakSub())
+                                .map(User::getId)
+                                .orElseThrow(() -> e);
+                    }
                 });
     }
 }

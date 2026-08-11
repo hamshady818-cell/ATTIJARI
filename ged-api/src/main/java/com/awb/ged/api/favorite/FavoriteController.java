@@ -12,6 +12,7 @@ import com.awb.ged.common.security.CurrentUser;
 import com.awb.ged.domain.user.model.User;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -93,7 +94,13 @@ public class FavoriteController {
                             .createdAt(Instant.now())
                             .updatedAt(Instant.now())
                             .build();
-                    return userRepositoryPort.save(newUser).getId();
+                    try {
+                        return userRepositoryPort.save(newUser).getId();
+                    } catch (DataIntegrityViolationException e) {
+                        return userRepositoryPort.findByKeycloakSub(currentUser.getKeycloakSub())
+                                .map(User::getId)
+                                .orElseThrow(() -> e);
+                    }
                 });
     }
 }

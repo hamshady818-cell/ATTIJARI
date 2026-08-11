@@ -116,6 +116,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
             documents.map((doc) => {
               const isSelected = selectedIds.includes(doc.id);
               const searchDoc = doc as DocumentSearchResult;
+              const isLocked = Boolean((doc as any).isLocked ?? (doc as any).locked);
 
               return (
                 <tr
@@ -151,7 +152,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                         {doc.name}
                       </button>
 
-                      {doc.isLocked && (
+                      {isLocked && (
                         <span
                           className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold bg-red-50 text-brand-locked border border-red-200 rounded-md"
                           title="Document verrouillé par check-out"
@@ -259,7 +260,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                       </button>
 
                       {/* Checkout / Lock toggle */}
-                      {doc.isLocked ? (
+                      {isLocked ? (
                         <button
                           onClick={() => onCheckinDocument(doc.id)}
                           className="p-1.5 text-brand-primary hover:bg-brand-primary-light border border-transparent hover:border-brand-primary/30 rounded-md transition-colors"

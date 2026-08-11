@@ -24,7 +24,11 @@ public class BulkDocumentActionCommand {
     private UUID targetFolderId;
 
     /** For MOVE to root explicitly */
-    private boolean moveToRoot;
+    private Boolean moveToRoot;
+
+    public Boolean isMoveToRoot() {
+        return Boolean.TRUE.equals(moveToRoot);
+    }
 
     /** For TAG: tag names to apply */
     private List<String> tagNames;

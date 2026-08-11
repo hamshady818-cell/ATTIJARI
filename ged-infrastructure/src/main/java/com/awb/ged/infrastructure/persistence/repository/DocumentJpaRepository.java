@@ -1,6 +1,8 @@
 package com.awb.ged.infrastructure.persistence.repository;
 
 import com.awb.ged.infrastructure.persistence.entity.document.DocumentJpaEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -24,6 +26,11 @@ public interface DocumentJpaRepository
     List<DocumentJpaEntity> findByFolderIdAndDeletedAtIsNull(UUID folderId);
 
     List<DocumentJpaEntity> findByFolderIsNullAndDeletedAtIsNull();
+
+    Page<DocumentJpaEntity> findByStatus(DocumentJpaEntity.DocumentStatus status, Pageable pageable);
+
+    @Query("SELECT d FROM DocumentJpaEntity d WHERE d.status = 'TRASHED' AND ((d.deletedBy IS NOT NULL AND d.deletedBy.id = :userId) OR (d.owner IS NOT NULL AND d.owner.id = :userId))")
+    Page<DocumentJpaEntity> findTrashedByUser(@Param("userId") UUID userId, Pageable pageable);
 
     @Query("SELECT COUNT(d) FROM DocumentJpaEntity d WHERE d.deletedAt IS NULL")
     long countNonDeleted();

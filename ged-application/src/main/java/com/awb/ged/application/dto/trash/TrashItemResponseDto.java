@@ -20,6 +20,7 @@ public class TrashItemResponseDto {
     private String name;
     private UUID originalFolderId;
     private UUID deletedBy;
+    private String ownerUsername;
     private Instant deletedAt;
     private Instant autoPurgeAt;
 }

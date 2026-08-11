@@ -29,6 +29,7 @@ public enum ErrorCode {
     DOCUMENT_ALREADY_EXISTS("ERR-DOC-004", "A document with the same name already exists in this folder.", ErrorCategory.DOCUMENT),
     INVALID_DOCUMENT_FORMAT("ERR-DOC-005", "The document format is not supported.", ErrorCategory.DOCUMENT),
     FILE_TOO_LARGE("ERR-DOC-006", "The uploaded file exceeds the maximum allowed size.", ErrorCategory.DOCUMENT),
+    CATEGORY_NOT_FOUND("ERR-DOC-007", "The specified category was not found.", ErrorCategory.DOCUMENT),
     
     // --- FOLDER MANAGEMENT (ERR-FLD-xxx) ---
     FOLDER_NOT_FOUND("ERR-FLD-001", "The requested folder was not found.", ErrorCategory.FOLDER),

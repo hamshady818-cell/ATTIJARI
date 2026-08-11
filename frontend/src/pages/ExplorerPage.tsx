@@ -213,17 +213,37 @@ export const ExplorerPage: React.FC = () => {
   };
 
   const handleCheckoutSingle = async (id: string) => {
+    const doc =
+      folderContent?.documents?.find((d) => d.id === id) ||
+      searchResults?.content?.find((d) => d.id === id);
+
+    const isLocked = Boolean(doc?.isLocked ?? (doc as any)?.locked);
+
+    if (isLocked) {
+      alert('Ce document est déjà verrouillé.');
+      return;
+    }
+
     try {
       await documentApi.checkout(id);
+      await queryClient.invalidateQueries({ queryKey: ['folder-content'] });
+      await queryClient.invalidateQueries({ queryKey: ['search-documents'] });
       handleRefresh();
     } catch (err: any) {
-      alert('Erreur de verrouillage: ' + (err.response?.data?.message || err.message));
+      const msg = err.response?.data?.message || err.message || '';
+      if (msg.includes('already checked out') || msg.includes('verrouillé')) {
+        alert('Ce document est déjà verrouillé par un autre utilisateur.');
+      } else {
+        alert('Erreur de verrouillage: ' + (msg || 'Une erreur est survenue'));
+      }
     }
   };
 
   const handleCheckinSingle = async (id: string) => {
     try {
       await documentApi.checkin(id);
+      await queryClient.invalidateQueries({ queryKey: ['folder-content'] });
+      await queryClient.invalidateQueries({ queryKey: ['search-documents'] });
       handleRefresh();
     } catch (err: any) {
       alert('Erreur de déverrouillage: ' + (err.response?.data?.message || err.message));

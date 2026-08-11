@@ -36,7 +36,13 @@ public class TrashEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleDocumentDeleted(DocumentDeletedEvent event) {
+        if (event.getDeletedBy() == null) return;
         UserJpaEntity deletedBy = userJpaRepository.findById(event.getDeletedBy()).orElse(null);
+        if (deletedBy == null) {
+            deletedBy = userJpaRepository.findAll().stream().findFirst().orElse(null);
+        }
+        if (deletedBy == null) return;
+
         FolderJpaEntity originalFolder = null;
         if (event.getFolderId() != null) {
             originalFolder = folderJpaRepository.findById(event.getFolderId()).orElse(null);
@@ -47,8 +53,8 @@ public class TrashEventListener {
                 .entityId(event.getDocumentId())
                 .originalFolder(originalFolder)
                 .deletedBy(deletedBy)
-                .deletedAt(event.getOccurredAt())
-                .autoPurgeAt(event.getOccurredAt().plus(30, ChronoUnit.DAYS))
+                .deletedAt(event.getOccurredAt() != null ? event.getOccurredAt() : java.time.Instant.now())
+                .autoPurgeAt(event.getOccurredAt() != null ? event.getOccurredAt().plus(30, ChronoUnit.DAYS) : java.time.Instant.now().plus(30, ChronoUnit.DAYS))
                 .build();
 
         trashJpaRepository.save(trashItem);
@@ -57,7 +63,13 @@ public class TrashEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleFolderDeleted(FolderDeletedEvent event) {
+        if (event.getDeletedBy() == null) return;
         UserJpaEntity deletedBy = userJpaRepository.findById(event.getDeletedBy()).orElse(null);
+        if (deletedBy == null) {
+            deletedBy = userJpaRepository.findAll().stream().findFirst().orElse(null);
+        }
+        if (deletedBy == null) return;
+
         FolderJpaEntity originalFolder = null;
         if (event.getParentId() != null) {
             originalFolder = folderJpaRepository.findById(event.getParentId()).orElse(null);
@@ -68,8 +80,8 @@ public class TrashEventListener {
                 .entityId(event.getFolderId())
                 .originalFolder(originalFolder)
                 .deletedBy(deletedBy)
-                .deletedAt(event.getOccurredAt())
-                .autoPurgeAt(event.getOccurredAt().plus(30, ChronoUnit.DAYS))
+                .deletedAt(event.getOccurredAt() != null ? event.getOccurredAt() : java.time.Instant.now())
+                .autoPurgeAt(event.getOccurredAt() != null ? event.getOccurredAt().plus(30, ChronoUnit.DAYS) : java.time.Instant.now().plus(30, ChronoUnit.DAYS))
                 .build();
 
         trashJpaRepository.save(trashItem);

@@ -17,6 +17,6 @@ public class UpdateMetadataDefinitionCommand {
     private String name;
     private String label;
     private MetadataType type;
-    private boolean required;
+    private Boolean required;
     private String validationPattern;
 }

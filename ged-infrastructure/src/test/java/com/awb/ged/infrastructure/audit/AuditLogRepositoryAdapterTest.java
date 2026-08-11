@@ -56,6 +56,7 @@ class AuditLogRepositoryAdapterTest {
         verify(auditLogJpaRepository).save(captor.capture());
 
         AuditLogJpaEntity saved = captor.getValue();
+        assertThat(saved.getId()).isNull();
         assertThat(saved.getAction()).isEqualTo("DOCUMENT_UPLOAD");
         assertThat(saved.getEntityType()).isEqualTo("DOCUMENT");
         assertThat(saved.getEntityId()).isEqualTo(entityId);

@@ -209,4 +209,46 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.locked").value(true))
                 .andExpect(jsonPath("$.lockedBy").value(userId.toString()));
     }
+
+    @Test
+    @WithMockUser(authorities = "DOCUMENT_WRITE")
+    @DisplayName("PATCH /api/v1/documents/{id} - Should update document without moveToRoot property in JSON (200 OK)")
+    void updateDocument_WithoutMoveToRoot_Success() throws Exception {
+        UUID docId = UUID.randomUUID();
+        DocumentResponseDto updatedDto = DocumentResponseDto.builder()
+                .id(docId)
+                .name("test.pdf")
+                .build();
+
+        given(updateDocumentUseCase.updateDocument(eq(docId), any(), any())).willReturn(updatedDto);
+
+        mockMvc.perform(patch("/api/v1/documents/{id}", docId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"newName\": \"test.pdf\"}")
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(docId.toString()))
+                .andExpect(jsonPath("$.name").value("test.pdf"));
+    }
+
+    @Test
+    @WithMockUser(authorities = "DOCUMENT_WRITE")
+    @DisplayName("PATCH /api/v1/documents/{id} - Should update document with explicit null moveToRoot in JSON (200 OK)")
+    void updateDocument_WithExplicitNullMoveToRoot_Success() throws Exception {
+        UUID docId = UUID.randomUUID();
+        DocumentResponseDto updatedDto = DocumentResponseDto.builder()
+                .id(docId)
+                .name("test.pdf")
+                .build();
+
+        given(updateDocumentUseCase.updateDocument(eq(docId), any(), any())).willReturn(updatedDto);
+
+        mockMvc.perform(patch("/api/v1/documents/{id}", docId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"newName\": \"test.pdf\", \"moveToRoot\": null}")
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(docId.toString()))
+                .andExpect(jsonPath("$.name").value("test.pdf"));
+    }
 }
