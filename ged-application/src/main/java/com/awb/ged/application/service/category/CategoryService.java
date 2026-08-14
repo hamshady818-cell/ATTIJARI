@@ -47,6 +47,7 @@ public class CategoryService implements CreateCategoryUseCase, GetCategoryUseCas
                 .name(command.getName())
                 .parentId(command.getParentId())
                 .path(path)
+                .securityClass(command.getSecurityClass() != null ? command.getSecurityClass().toUpperCase() : null)
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build();
@@ -95,6 +96,7 @@ public class CategoryService implements CreateCategoryUseCase, GetCategoryUseCas
                 .name(command.getName())
                 .parentId(command.getParentId())
                 .path(path)
+                .securityClass(command.getSecurityClass() != null ? command.getSecurityClass().toUpperCase() : category.getSecurityClass())
                 .updatedAt(Instant.now())
                 .build();
 

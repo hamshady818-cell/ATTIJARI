@@ -8,4 +8,8 @@ import java.util.UUID;
 public interface ListDocumentVersionsUseCase {
 
     List<DocumentVersionResponseDto> listVersions(UUID documentId);
+
+    default List<DocumentVersionResponseDto> listVersions(UUID documentId, UUID userId) {
+        return listVersions(documentId);
+    }
 }

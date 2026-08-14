@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { refApi } from '../api/refApi';
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
+import { Pagination } from '../components/ui/Pagination';
 import { Files, Folder, HardDrive, FileClock, Activity } from 'lucide-react';
 import { documentApi } from '../api/documentApi';
 import { DocumentPreviewModal } from '../components/explorer/DocumentPreviewModal';
@@ -10,6 +11,12 @@ import { DocumentItem } from '../types';
 
 export const DashboardPage: React.FC = () => {
   const [previewDocument, setPreviewDocument] = React.useState<DocumentItem | null>(null);
+
+  // Independent pagination state for each table (client-side)
+  const [uploadsPage, setUploadsPage]         = React.useState(0);
+  const [uploadsPageSize, setUploadsPageSize] = React.useState(10);
+  const [modifiedPage, setModifiedPage]           = React.useState(0);
+  const [modifiedPageSize, setModifiedPageSize]   = React.useState(10);
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
@@ -27,6 +34,20 @@ export const DashboardPage: React.FC = () => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleString('fr-FR');
   };
+
+  // Client-side slicing for Recent Uploads
+  const allUploads   = stats?.recentUploads   || [];
+  const pagedUploads = allUploads.slice(uploadsPage * uploadsPageSize, (uploadsPage + 1) * uploadsPageSize);
+  const uploadsTotalPages = Math.ceil(allUploads.length / uploadsPageSize) || 1;
+  const uploadsIsFirst = uploadsPage === 0;
+  const uploadsIsLast  = uploadsPage >= uploadsTotalPages - 1;
+
+  // Client-side slicing for Recently Modified
+  const allModified   = stats?.recentlyModified   || [];
+  const pagedModified = allModified.slice(modifiedPage * modifiedPageSize, (modifiedPage + 1) * modifiedPageSize);
+  const modifiedTotalPages = Math.ceil(allModified.length / modifiedPageSize) || 1;
+  const modifiedIsFirst = modifiedPage === 0;
+  const modifiedIsLast  = modifiedPage >= modifiedTotalPages - 1;
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-brand-bg">
@@ -116,14 +137,14 @@ export const DashboardPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-brand-border font-sans">
-                  {stats?.recentUploads?.length === 0 ? (
+                  {pagedUploads.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="text-center py-4 text-brand-muted italic">
                         Aucun versement récent
                       </td>
                     </tr>
                   ) : (
-                    stats?.recentUploads?.map((doc) => (
+                    pagedUploads.map((doc) => (
                       <tr key={doc.id}>
                         <td className="font-medium text-xs truncate max-w-[150px]">{doc.name}</td>
                         <td>
@@ -146,6 +167,18 @@ export const DashboardPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              page={uploadsPage}
+              pageSize={uploadsPageSize}
+              totalElements={allUploads.length}
+              totalPages={uploadsTotalPages}
+              isFirst={uploadsIsFirst}
+              isLast={uploadsIsLast}
+              isLoading={isLoading}
+              onPageChange={setUploadsPage}
+              onPageSizeChange={(size) => { setUploadsPageSize(size); setUploadsPage(0); }}
+              label="documents"
+            />
           </div>
 
           {/* Recently Modified */}
@@ -168,14 +201,14 @@ export const DashboardPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-brand-border font-sans">
-                  {stats?.recentlyModified?.length === 0 ? (
+                  {pagedModified.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="text-center py-4 text-brand-muted italic">
                         Aucune modification récente
                       </td>
                     </tr>
                   ) : (
-                    stats?.recentlyModified?.map((doc) => (
+                    pagedModified.map((doc) => (
                       <tr key={doc.id}>
                         <td className="font-medium text-xs truncate max-w-[150px]">{doc.name}</td>
                         <td>
@@ -198,6 +231,18 @@ export const DashboardPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              page={modifiedPage}
+              pageSize={modifiedPageSize}
+              totalElements={allModified.length}
+              totalPages={modifiedTotalPages}
+              isFirst={modifiedIsFirst}
+              isLast={modifiedIsLast}
+              isLoading={isLoading}
+              onPageChange={setModifiedPage}
+              onPageSizeChange={(size) => { setModifiedPageSize(size); setModifiedPage(0); }}
+              label="documents"
+            />
           </div>
         </div>
       </main>

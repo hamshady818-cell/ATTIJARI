@@ -14,4 +14,10 @@ import java.util.UUID;
 public class CreateCategoryCommand {
     private String name;
     private UUID parentId;
+
+    /**
+     * Security classification key (e.g., "FINANCE") — must match the suffix of a Keycloak
+     * client role {@code DOC_TYPE_*} on {@code ged-boot}. Nullable = no type restriction.
+     */
+    private String securityClass;
 }

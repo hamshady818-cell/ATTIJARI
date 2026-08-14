@@ -1,5 +1,6 @@
 package com.awb.ged.application.service.trash;
 
+import com.awb.ged.application.port.in.security.DocumentAccessValidator;
 import com.awb.ged.application.port.in.trash.RestoreFromTrashUseCase;
 import com.awb.ged.application.port.out.persistence.DocumentRepositoryPort;
 import com.awb.ged.application.port.out.persistence.FolderRepositoryPort;
@@ -22,14 +23,23 @@ public class RestoreFromTrashService implements RestoreFromTrashUseCase {
     private final TrashRepositoryPort trashRepositoryPort;
     private final DocumentRepositoryPort documentRepositoryPort;
     private final FolderRepositoryPort folderRepositoryPort;
+    private final DocumentAccessValidator documentAccessValidator;
 
     @Autowired
     public RestoreFromTrashService(TrashRepositoryPort trashRepositoryPort,
                                   DocumentRepositoryPort documentRepositoryPort,
-                                  FolderRepositoryPort folderRepositoryPort) {
+                                  FolderRepositoryPort folderRepositoryPort,
+                                  DocumentAccessValidator documentAccessValidator) {
         this.trashRepositoryPort = trashRepositoryPort;
         this.documentRepositoryPort = documentRepositoryPort;
         this.folderRepositoryPort = folderRepositoryPort;
+        this.documentAccessValidator = documentAccessValidator;
+    }
+
+    public RestoreFromTrashService(TrashRepositoryPort trashRepositoryPort,
+                                  DocumentRepositoryPort documentRepositoryPort,
+                                  FolderRepositoryPort folderRepositoryPort) {
+        this(trashRepositoryPort, documentRepositoryPort, folderRepositoryPort, null);
     }
 
     @Override
@@ -49,6 +59,10 @@ public class RestoreFromTrashService implements RestoreFromTrashUseCase {
                             ErrorCode.DOCUMENT_NOT_FOUND,
                             "Document with ID " + item.getEntityId() + " was not found."
                     ));
+
+            if (documentAccessValidator != null) {
+                documentAccessValidator.validateAccess(doc, userId, "WRITE");
+            }
             doc.setDeletedAt(null);
             doc.setDeletedBy(null);
             doc.setStatus(Document.DocumentStatus.DRAFT);

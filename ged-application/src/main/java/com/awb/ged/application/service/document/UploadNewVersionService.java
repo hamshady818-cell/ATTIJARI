@@ -1,9 +1,10 @@
 package com.awb.ged.application.service.document;
 
 import com.awb.ged.application.dto.document.DocumentVersionResponseDto;
+import com.awb.ged.application.dto.document.UploadNewVersionCommand;
 import com.awb.ged.application.mapper.DocumentMapper;
 import com.awb.ged.application.port.in.document.UploadNewVersionUseCase;
-import com.awb.ged.application.dto.document.UploadNewVersionCommand;
+import com.awb.ged.application.port.in.security.DocumentAccessValidator;
 import com.awb.ged.application.port.out.event.EventPublisherPort;
 import com.awb.ged.application.port.out.persistence.DocumentRepositoryPort;
 import com.awb.ged.application.port.out.storage.StoragePort;
@@ -33,16 +34,25 @@ public class UploadNewVersionService implements UploadNewVersionUseCase {
     private final StoragePort storagePort;
     private final DocumentMapper documentMapper;
     private final EventPublisherPort eventPublisherPort;
+    private final DocumentAccessValidator documentAccessValidator;
 
     @Autowired
     public UploadNewVersionService(DocumentRepositoryPort documentRepositoryPort,
                                    StoragePort storagePort,
                                    DocumentMapper documentMapper,
-                                   EventPublisherPort eventPublisherPort) {
+                                   EventPublisherPort eventPublisherPort,
+                                   DocumentAccessValidator documentAccessValidator) {
         this.documentRepositoryPort = documentRepositoryPort;
         this.storagePort = storagePort;
         this.documentMapper = documentMapper;
         this.eventPublisherPort = eventPublisherPort;
+        this.documentAccessValidator = documentAccessValidator;
+    }
+
+    public UploadNewVersionService(DocumentRepositoryPort documentRepositoryPort,
+                                   StoragePort storagePort,
+                                   DocumentMapper documentMapper) {
+        this(documentRepositoryPort, storagePort, documentMapper, null, null);
     }
 
     @Override
@@ -53,6 +63,10 @@ public class UploadNewVersionService implements UploadNewVersionUseCase {
                         ErrorCode.DOCUMENT_NOT_FOUND,
                         "Document with ID " + command.getDocumentId() + " was not found."
                 ));
+
+        if (documentAccessValidator != null) {
+            documentAccessValidator.validateAccess(document, command.getUploadedBy(), "WRITE");
+        }
 
         // 2. Verify document is not locked by another user
         if (document.isCurrentlyLocked(Instant.now())) {

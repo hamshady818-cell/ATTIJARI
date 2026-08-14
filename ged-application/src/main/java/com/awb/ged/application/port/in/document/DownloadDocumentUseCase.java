@@ -7,5 +7,9 @@ public interface DownloadDocumentUseCase {
 
     DownloadResult download(UUID documentId, UUID versionId);
 
+    default DownloadResult download(UUID documentId, UUID versionId, UUID userId) {
+        return download(documentId, versionId);
+    }
+
     record DownloadResult(InputStream inputStream, String fileName, String mimeType, long sizeBytes) {}
 }

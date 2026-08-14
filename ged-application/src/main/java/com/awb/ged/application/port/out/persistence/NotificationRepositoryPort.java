@@ -13,4 +13,13 @@ public interface NotificationRepositoryPort {
     Optional<Notification> findById(UUID id);
 
     List<Notification> findByUserId(UUID userId, int page, int size);
+
+    /**
+     * Returns all notifications for the given user that have not yet been read
+     * (status PENDING or SENT). Used by the bulk mark-all-read operation.
+     *
+     * @param userId the recipient user's ID
+     * @return unread notifications, unordered
+     */
+    List<Notification> findUnreadByUserId(UUID userId);
 }

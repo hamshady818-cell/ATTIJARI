@@ -12,47 +12,62 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * <h1>KeycloakJwtRoleConverter</h1>
- * <p>
- * Custom JWT converter that extracts realm and client roles from a Keycloak token
- * and converts them into Spring Security {@link GrantedAuthority} objects with the {@code ROLE_} prefix.
- * </p>
- */
 public class KeycloakJwtRoleConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
 
     private static final String REALM_ACCESS = "realm_access";
     private static final String RESOURCE_ACCESS = "resource_access";
     private static final String ROLES = "roles";
+    private static final String GROUPS = "groups";
+
     private static final String ROLE_PREFIX = "ROLE_";
+    private static final String GROUP_PREFIX = "GROUP_";
 
     @Override
     public Collection<GrantedAuthority> convert(Jwt jwt) {
-        List<String> roles = new ArrayList<>();
+
+        List<GrantedAuthority> authorities = new ArrayList<>();
 
         // 1. Extract Realm roles
         Map<String, Object> realmAccess = jwt.getClaim(REALM_ACCESS);
+
         if (realmAccess != null && realmAccess.containsKey(ROLES)) {
             Object rolesObj = realmAccess.get(ROLES);
+
             if (rolesObj instanceof Collection<?>) {
                 for (Object role : (Collection<?>) rolesObj) {
-                    roles.add(role.toString());
+                    authorities.add(
+                            new SimpleGrantedAuthority(
+                                    ROLE_PREFIX + role.toString().toUpperCase()
+                            )
+                    );
                 }
             }
         }
 
-        // 2. Extract Client roles (from all resource access mappings)
+        // 2. Extract Client roles
         Map<String, Object> resourceAccess = jwt.getClaim(RESOURCE_ACCESS);
+
         if (resourceAccess != null) {
             for (Map.Entry<String, Object> entry : resourceAccess.entrySet()) {
+
                 Object clientAccessObj = entry.getValue();
+
                 if (clientAccessObj instanceof Map<?, ?>) {
+
                     Map<?, ?> clientAccess = (Map<?, ?>) clientAccessObj;
+
                     if (clientAccess.containsKey(ROLES)) {
+
                         Object clientRolesObj = clientAccess.get(ROLES);
+
                         if (clientRolesObj instanceof Collection<?>) {
+
                             for (Object role : (Collection<?>) clientRolesObj) {
-                                roles.add(role.toString());
+                                authorities.add(
+                                        new SimpleGrantedAuthority(
+                                                ROLE_PREFIX + role.toString().toUpperCase()
+                                        )
+                                );
                             }
                         }
                     }
@@ -60,13 +75,32 @@ public class KeycloakJwtRoleConverter implements Converter<Jwt, Collection<Grant
             }
         }
 
-        // Convert roles to SimpleGrantedAuthority with "ROLE_" prefix
-        if (roles.isEmpty()) {
+        // 3. Extract Keycloak Groups
+        List<String> groups = jwt.getClaim(GROUPS);
+
+        if (groups != null) {
+
+            for (String group : groups) {
+
+                // "/FINANCE" -> "FINANCE"
+                String groupName = group
+                        .replace("/", "")
+                        .toUpperCase();
+
+                authorities.add(
+                        new SimpleGrantedAuthority(
+                                GROUP_PREFIX + groupName
+                        )
+                );
+            }
+        }
+
+        // Remove duplicates
+        if (authorities.isEmpty()) {
             return Collections.emptyList();
         }
 
-        return roles.stream()
-                .map(role -> new SimpleGrantedAuthority(ROLE_PREFIX + role.toUpperCase()))
+        return authorities.stream()
                 .collect(Collectors.toSet());
     }
 }

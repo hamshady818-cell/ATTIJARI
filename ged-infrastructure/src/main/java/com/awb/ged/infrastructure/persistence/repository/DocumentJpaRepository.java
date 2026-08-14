@@ -29,6 +29,9 @@ public interface DocumentJpaRepository
 
     Page<DocumentJpaEntity> findByStatus(DocumentJpaEntity.DocumentStatus status, Pageable pageable);
 
+    @Query("SELECT d FROM DocumentJpaEntity d WHERE d.deleted = true OR d.deletedAt IS NOT NULL OR d.status = com.awb.ged.infrastructure.persistence.entity.document.DocumentJpaEntity.DocumentStatus.TRASHED")
+    Page<DocumentJpaEntity> findTrashedDocuments(Pageable pageable);
+
     @Query("SELECT d FROM DocumentJpaEntity d WHERE d.status = 'TRASHED' AND ((d.deletedBy IS NOT NULL AND d.deletedBy.id = :userId) OR (d.owner IS NOT NULL AND d.owner.id = :userId))")
     Page<DocumentJpaEntity> findTrashedByUser(@Param("userId") UUID userId, Pageable pageable);
 

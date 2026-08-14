@@ -3,6 +3,7 @@ package com.awb.ged.application.service.document;
 import com.awb.ged.application.dto.document.DocumentSearchQuery;
 import com.awb.ged.application.dto.document.DocumentSearchResultDto;
 import com.awb.ged.application.port.in.document.SearchDocumentsUseCase;
+import com.awb.ged.application.port.in.security.DocumentAccessValidator;
 import com.awb.ged.application.port.out.persistence.DocumentRepositoryPort;
 import com.awb.ged.common.model.PageResponse;
 import org.springframework.stereotype.Service;
@@ -18,9 +19,17 @@ public class SearchDocumentsService implements SearchDocumentsUseCase {
             Set.of("createdAt", "updatedAt", "name", "status");
 
     private final DocumentRepositoryPort documentRepositoryPort;
+    private final DocumentAccessValidator documentAccessValidator;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public SearchDocumentsService(DocumentRepositoryPort documentRepositoryPort,
+                                  DocumentAccessValidator documentAccessValidator) {
+        this.documentRepositoryPort = documentRepositoryPort;
+        this.documentAccessValidator = documentAccessValidator;
+    }
 
     public SearchDocumentsService(DocumentRepositoryPort documentRepositoryPort) {
-        this.documentRepositoryPort = documentRepositoryPort;
+        this(documentRepositoryPort, null);
     }
 
     @Override
@@ -51,6 +60,40 @@ public class SearchDocumentsService implements SearchDocumentsUseCase {
                 .sortDirection(sortDirection)
                 .build();
 
-        return documentRepositoryPort.search(sanitizedQuery);
+        PageResponse<DocumentSearchResultDto> pageResult = documentRepositoryPort.search(sanitizedQuery);
+        if (documentAccessValidator == null || pageResult.getContent() == null || pageResult.getContent().isEmpty()) {
+            return pageResult;
+        }
+
+        // Filter search result content by checking access permission on each document DTO
+        java.util.List<DocumentSearchResultDto> filteredContent = pageResult.getContent().stream()
+                .filter(dto -> {
+                    try {
+                        com.awb.ged.domain.document.model.Document doc = com.awb.ged.domain.document.model.Document.builder()
+                                .id(dto.getId())
+                                .ownerId(dto.getOwnerId())
+                                .categoryId(dto.getCategoryId())
+                                .departmentId(dto.getDepartmentId())
+                                .build();
+                        documentAccessValidator.validateAccess(doc, null, "READ");
+                        return true;
+                    } catch (Exception ex) {
+                        return false;
+                    }
+                })
+                .toList();
+
+        return PageResponse.<DocumentSearchResultDto>builder()
+                .content(filteredContent)
+                .pageNumber(pageResult.getPageNumber())
+                .pageSize(pageResult.getPageSize())
+                .totalElements(filteredContent.size())
+                .totalPages(filteredContent.isEmpty() ? 0 : 1)
+                .first(pageResult.isFirst())
+                .last(pageResult.isLast())
+                .empty(filteredContent.isEmpty())
+                .sortBy(pageResult.getSortBy())
+                .sortDirection(pageResult.getSortDirection())
+                .build();
     }
 }

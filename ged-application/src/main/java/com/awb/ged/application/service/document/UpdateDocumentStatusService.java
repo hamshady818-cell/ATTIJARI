@@ -3,6 +3,7 @@ package com.awb.ged.application.service.document;
 import com.awb.ged.application.dto.document.DocumentResponseDto;
 import com.awb.ged.application.mapper.DocumentMapper;
 import com.awb.ged.application.port.in.document.UpdateDocumentStatusUseCase;
+import com.awb.ged.application.port.in.security.DocumentAccessValidator;
 import com.awb.ged.application.port.out.persistence.DocumentRepositoryPort;
 import com.awb.ged.common.exception.BusinessException;
 import com.awb.ged.common.exception.ErrorCode;
@@ -21,12 +22,19 @@ public class UpdateDocumentStatusService implements UpdateDocumentStatusUseCase 
 
     private final DocumentRepositoryPort documentRepositoryPort;
     private final DocumentMapper documentMapper;
+    private final DocumentAccessValidator documentAccessValidator;
 
     @Autowired
     public UpdateDocumentStatusService(DocumentRepositoryPort documentRepositoryPort,
-                                       DocumentMapper documentMapper) {
+                                       DocumentMapper documentMapper,
+                                       DocumentAccessValidator documentAccessValidator) {
         this.documentRepositoryPort = documentRepositoryPort;
         this.documentMapper = documentMapper;
+        this.documentAccessValidator = documentAccessValidator;
+    }
+
+    public UpdateDocumentStatusService(DocumentRepositoryPort documentRepositoryPort, DocumentMapper documentMapper) {
+        this(documentRepositoryPort, documentMapper, null);
     }
 
     @Override
@@ -36,6 +44,10 @@ public class UpdateDocumentStatusService implements UpdateDocumentStatusUseCase 
                         ErrorCode.DOCUMENT_NOT_FOUND,
                         "Document with ID " + documentId + " was not found."
                 ));
+
+        if (documentAccessValidator != null) {
+            documentAccessValidator.validateAccess(document, currentUserId, "WRITE");
+        }
 
         Document.DocumentStatus targetStatus;
         try {

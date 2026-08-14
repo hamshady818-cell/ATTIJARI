@@ -203,11 +203,25 @@ export type NotificationType =
 export interface NotificationItem {
   id: string;
   type: NotificationType;
-  message: string;
-  relatedDocumentId?: string;
-  relatedDocumentName?: string;
-  read: boolean;
+  /** Short title shown as notification header (maps to backend's `title` field). */
+  title: string;
+  /** Full notification body text (maps to backend's `body` field). */
+  body?: string;
+  /** Type of the related entity: "DOCUMENT" | "FOLDER" | null */
+  entityType?: string;
+  /** UUID of the related entity for deep-linking */
+  entityId?: string;
+  /** Delivery channel: "IN_APP" | "EMAIL" | "PUSH" */
+  channel?: string;
+  /** Backend lifecycle status: "PENDING" | "SENT" | "READ" | "FAILED" */
+  status: 'PENDING' | 'SENT' | 'READ' | 'FAILED';
+  /** Timestamp when the user acknowledged this notification (null if unread) */
+  readAt?: string;
+  /** Timestamp when the notification was dispatched */
+  sentAt?: string;
   createdAt: string;
+  /** Derived client-side field — true when status === "READ" */
+  read: boolean;
 }
 
 export interface TrashItemResponse {

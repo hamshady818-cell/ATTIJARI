@@ -2,6 +2,7 @@ package com.awb.ged.api.notification;
 
 import com.awb.ged.application.dto.notification.NotificationResponseDto;
 import com.awb.ged.application.port.in.notification.GetNotificationsUseCase;
+import com.awb.ged.application.port.in.notification.MarkAllNotificationsReadUseCase;
 import com.awb.ged.application.port.in.notification.MarkNotificationReadUseCase;
 import com.awb.ged.application.port.in.security.CurrentUserProvider;
 import com.awb.ged.application.port.out.persistence.UserRepositoryPort;
@@ -23,16 +24,19 @@ public class NotificationController {
 
     private final GetNotificationsUseCase getNotificationsUseCase;
     private final MarkNotificationReadUseCase markNotificationReadUseCase;
+    private final MarkAllNotificationsReadUseCase markAllNotificationsReadUseCase;
     private final CurrentUserProvider currentUserProvider;
     private final UserRepositoryPort userRepositoryPort;
 
     @Autowired
     public NotificationController(GetNotificationsUseCase getNotificationsUseCase,
                                   MarkNotificationReadUseCase markNotificationReadUseCase,
+                                  MarkAllNotificationsReadUseCase markAllNotificationsReadUseCase,
                                   CurrentUserProvider currentUserProvider,
                                   UserRepositoryPort userRepositoryPort) {
         this.getNotificationsUseCase = getNotificationsUseCase;
         this.markNotificationReadUseCase = markNotificationReadUseCase;
+        this.markAllNotificationsReadUseCase = markAllNotificationsReadUseCase;
         this.currentUserProvider = currentUserProvider;
         this.userRepositoryPort = userRepositoryPort;
     }
@@ -52,6 +56,14 @@ public class NotificationController {
     public ResponseEntity<Void> markAsRead(@PathVariable("id") UUID id) {
         UUID userId = resolveCurrentUserId();
         markNotificationReadUseCase.markAsRead(id, userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/read-all")
+    @PreAuthorize("hasAuthority('NOTIFICATION_WRITE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    public ResponseEntity<Void> markAllAsRead() {
+        UUID userId = resolveCurrentUserId();
+        markAllNotificationsReadUseCase.markAllAsRead(userId);
         return ResponseEntity.noContent().build();
     }
 

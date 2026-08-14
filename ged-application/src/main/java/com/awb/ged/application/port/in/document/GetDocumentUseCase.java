@@ -7,4 +7,8 @@ import java.util.UUID;
 public interface GetDocumentUseCase {
 
     DocumentResponseDto getDocumentById(UUID documentId);
+
+    default DocumentResponseDto getDocumentById(UUID documentId, UUID userId) {
+        return getDocumentById(documentId);
+    }
 }

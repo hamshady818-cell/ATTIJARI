@@ -52,6 +52,18 @@ public class NotificationRepositoryAdapter implements NotificationRepositoryPort
                 .toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<Notification> findUnreadByUserId(UUID userId) {
+        return notificationJpaRepository.findByUserIdAndStatusIn(
+                userId,
+                List.of(
+                        NotificationJpaEntity.NotificationStatus.PENDING,
+                        NotificationJpaEntity.NotificationStatus.SENT
+                )
+        ).stream().map(this::mapToDomain).toList();
+    }
+
     private Notification mapToDomain(NotificationJpaEntity entity) {
         if (entity == null) return null;
         return Notification.builder()

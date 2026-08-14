@@ -121,7 +121,7 @@ public class DocumentController {
     // =========================================================================
 
     @GetMapping("/search")
-    @PreAuthorize("hasAuthority('DOCUMENT_READ') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER') or hasRole('VIEWER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<com.awb.ged.common.model.PageResponse<DocumentSearchResultDto>> searchDocuments(
             @RequestParam(value = "keyword", required = false) String keyword,
             @RequestParam(value = "categoryId", required = false) UUID categoryId,
@@ -165,7 +165,7 @@ public class DocumentController {
     // =========================================================================
 
     @PostMapping(value = "/upload", consumes = "multipart/form-data")
-    @PreAuthorize("hasAuthority('DOCUMENT_CREATE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DocumentResponseDto> uploadDocument(
             @RequestParam("file") MultipartFile file,
             @RequestParam("name") String name,
@@ -197,7 +197,7 @@ public class DocumentController {
     }
 
     @PostMapping(value = "/upload/bulk", consumes = "multipart/form-data")
-    @PreAuthorize("hasAuthority('DOCUMENT_CREATE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BulkUploadResultDto> bulkUploadDocuments(
             @RequestParam("files") MultipartFile[] files,
             @RequestParam(value = "folderId", required = false) UUID folderId,
@@ -246,23 +246,26 @@ public class DocumentController {
     // =========================================================================
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('DOCUMENT_READ') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER') or hasRole('VIEWER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DocumentResponseDto> getDocumentById(@PathVariable("id") UUID id) {
-        DocumentResponseDto document = getDocumentUseCase.getDocumentById(id);
+        UUID userId = resolveCurrentUserId();
+        DocumentResponseDto document = getDocumentUseCase.getDocumentById(id, userId);
         return ResponseEntity.ok(document);
     }
 
     @GetMapping("/{id}/download")
-    @PreAuthorize("hasAuthority('DOCUMENT_READ') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER') or hasRole('VIEWER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<StreamingResponseBody> downloadDocument(@PathVariable("id") UUID id) {
-        DownloadDocumentUseCase.DownloadResult result = downloadDocumentUseCase.download(id, null);
+        UUID userId = resolveCurrentUserId();
+        DownloadDocumentUseCase.DownloadResult result = downloadDocumentUseCase.download(id, null, userId);
         return buildStreamingDownloadResponse(result);
     }
 
     @GetMapping("/{id}/preview")
-    @PreAuthorize("hasAuthority('DOCUMENT_READ') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER') or hasRole('VIEWER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<StreamingResponseBody> previewDocument(@PathVariable("id") UUID id) {
-        PreviewDocumentUseCase.PreviewResult result = previewDocumentUseCase.preview(id);
+        UUID userId = resolveCurrentUserId();
+        PreviewDocumentUseCase.PreviewResult result = previewDocumentUseCase.preview(id, userId);
 
         StreamingResponseBody body = outputStream -> {
             try (InputStream in = result.inputStream()) {
@@ -282,7 +285,7 @@ public class DocumentController {
     // =========================================================================
 
     @PostMapping(value = "/{id}/versions", consumes = "multipart/form-data")
-    @PreAuthorize("hasAuthority('DOCUMENT_WRITE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DocumentVersionResponseDto> uploadNewVersion(
             @PathVariable("id") UUID id,
             @RequestParam("file") MultipartFile file,
@@ -305,18 +308,20 @@ public class DocumentController {
     }
 
     @GetMapping("/{id}/versions")
-    @PreAuthorize("hasAuthority('DOCUMENT_READ') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER') or hasRole('VIEWER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<DocumentVersionResponseDto>> listVersions(@PathVariable("id") UUID id) {
-        List<DocumentVersionResponseDto> versions = listDocumentVersionsUseCase.listVersions(id);
+        UUID userId = resolveCurrentUserId();
+        List<DocumentVersionResponseDto> versions = listDocumentVersionsUseCase.listVersions(id, userId);
         return ResponseEntity.ok(versions);
     }
 
     @GetMapping("/{id}/versions/{versionId}/download")
-    @PreAuthorize("hasAuthority('DOCUMENT_READ') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER') or hasRole('VIEWER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<StreamingResponseBody> downloadSpecificVersion(
             @PathVariable("id") UUID id,
             @PathVariable("versionId") UUID versionId) {
-        DownloadDocumentUseCase.DownloadResult result = downloadDocumentUseCase.download(id, versionId);
+        UUID userId = resolveCurrentUserId();
+        DownloadDocumentUseCase.DownloadResult result = downloadDocumentUseCase.download(id, versionId, userId);
         return buildStreamingDownloadResponse(result);
     }
 
@@ -325,7 +330,7 @@ public class DocumentController {
     // =========================================================================
 
     @PostMapping("/{id}/checkout")
-    @PreAuthorize("hasAuthority('DOCUMENT_WRITE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DocumentLockResponseDto> checkoutDocument(@PathVariable("id") UUID id) {
         UUID currentUserId = resolveCurrentUserId();
         DocumentLockResponseDto lock = checkoutDocumentUseCase.checkout(id, currentUserId);
@@ -333,7 +338,7 @@ public class DocumentController {
     }
 
     @PostMapping("/{id}/checkin")
-    @PreAuthorize("hasAuthority('DOCUMENT_WRITE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> checkinDocument(@PathVariable("id") UUID id) {
         UUID currentUserId = resolveCurrentUserId();
         checkinDocumentUseCase.checkin(id, currentUserId);
@@ -341,7 +346,7 @@ public class DocumentController {
     }
 
     @GetMapping("/{id}/lock")
-    @PreAuthorize("hasAuthority('DOCUMENT_READ') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER') or hasRole('VIEWER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DocumentLockResponseDto> getLockStatus(@PathVariable("id") UUID id) {
         DocumentLockResponseDto lock = getDocumentLockUseCase.getLockStatus(id);
         return ResponseEntity.ok(lock);
@@ -352,7 +357,7 @@ public class DocumentController {
     // =========================================================================
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasAuthority('DOCUMENT_WRITE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DocumentResponseDto> updateDocument(
             @PathVariable("id") UUID id,
             @Valid @RequestBody UpdateDocumentCommand command) {
@@ -362,7 +367,7 @@ public class DocumentController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAuthority('DOCUMENT_WRITE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DocumentResponseDto> updateStatus(
             @PathVariable("id") UUID id,
             @RequestParam("status") String status) {
@@ -372,7 +377,7 @@ public class DocumentController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('DOCUMENT_DELETE') or hasRole('ADMIN') or hasRole('MANAGER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> deleteDocument(@PathVariable("id") UUID id) {
         UUID currentUserId = resolveCurrentUserId();
         deleteDocumentUseCase.deleteDocument(id, currentUserId);
@@ -380,7 +385,7 @@ public class DocumentController {
     }
 
     @PostMapping("/{id}/restore")
-    @PreAuthorize("hasAuthority('DOCUMENT_WRITE') or hasRole('TRASH_RESTORE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DocumentResponseDto> restoreDocument(@PathVariable("id") UUID id) {
         UUID currentUserId = resolveCurrentUserId();
         DocumentResponseDto restored = updateDocumentStatusUseCase.updateStatus(id, "DRAFT", currentUserId);
@@ -388,7 +393,7 @@ public class DocumentController {
     }
 
     @GetMapping("/trash")
-    @PreAuthorize("hasAuthority('DOCUMENT_READ') or hasRole('TRASH_READ') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<com.awb.ged.common.model.PageResponse<DocumentSearchResultDto>> getDocumentTrash(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
@@ -408,7 +413,7 @@ public class DocumentController {
     // =========================================================================
 
     @DeleteMapping("/bulk")
-    @PreAuthorize("hasAuthority('DOCUMENT_DELETE') or hasRole('ADMIN') or hasRole('MANAGER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> bulkDelete(@RequestBody List<UUID> documentIds) {
         UUID currentUserId = resolveCurrentUserId();
         bulkDocumentActionUseCase.bulkDelete(documentIds, currentUserId);
@@ -416,7 +421,7 @@ public class DocumentController {
     }
 
     @PatchMapping("/bulk/move")
-    @PreAuthorize("hasAuthority('DOCUMENT_WRITE') or hasRole('ADMIN') or hasRole('MANAGER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> bulkMove(
             @RequestBody List<UUID> documentIds,
             @RequestParam(value = "targetFolderId", required = false) UUID targetFolderId,
@@ -427,7 +432,7 @@ public class DocumentController {
     }
 
     @PostMapping("/bulk/tag")
-    @PreAuthorize("hasAuthority('DOCUMENT_WRITE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> bulkTag(
             @RequestBody List<UUID> documentIds,
             @RequestParam("tagNames") List<String> tagNames) {
@@ -441,7 +446,7 @@ public class DocumentController {
     // =========================================================================
 
     @PostMapping("/{id}/permissions")
-    @PreAuthorize("hasAuthority('DOCUMENT_WRITE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PermissionResponseDto> grantPermission(
             @PathVariable("id") UUID id,
             @Valid @RequestBody GrantPermissionRequest request) {
@@ -464,7 +469,7 @@ public class DocumentController {
     }
 
     @DeleteMapping("/{id}/permissions/{permissionId}")
-    @PreAuthorize("hasAuthority('DOCUMENT_WRITE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> revokePermission(
             @PathVariable("id") UUID id,
             @PathVariable("permissionId") UUID permissionId) {
@@ -475,7 +480,7 @@ public class DocumentController {
     }
 
     @GetMapping("/{id}/permissions")
-    @PreAuthorize("hasAuthority('DOCUMENT_READ') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<PermissionResponseDto>> listPermissions(@PathVariable("id") UUID id) {
         UUID currentUserId = resolveCurrentUserId();
         boolean isAdminOrManager = checkIsAdminOrManager();
@@ -560,3 +565,4 @@ public class DocumentController {
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_MANAGER"));
     }
 }
+

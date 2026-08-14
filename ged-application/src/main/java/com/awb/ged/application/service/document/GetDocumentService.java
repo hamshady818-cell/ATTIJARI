@@ -5,6 +5,7 @@ import com.awb.ged.application.mapper.DocumentMapper;
 import com.awb.ged.application.port.in.document.GetDocumentUseCase;
 import com.awb.ged.application.port.out.event.EventPublisherPort;
 import com.awb.ged.application.port.out.persistence.DocumentRepositoryPort;
+import com.awb.ged.application.port.in.security.DocumentAccessValidator;
 import com.awb.ged.common.exception.ErrorCode;
 import com.awb.ged.common.exception.NotFoundException;
 import com.awb.ged.domain.document.model.Document;
@@ -21,28 +22,40 @@ public class GetDocumentService implements GetDocumentUseCase {
     private final DocumentRepositoryPort documentRepositoryPort;
     private final DocumentMapper documentMapper;
     private final EventPublisherPort eventPublisherPort;
+    private final DocumentAccessValidator documentAccessValidator;
 
     @Autowired
     public GetDocumentService(DocumentRepositoryPort documentRepositoryPort,
                               DocumentMapper documentMapper,
-                              EventPublisherPort eventPublisherPort) {
+                              EventPublisherPort eventPublisherPort,
+                              DocumentAccessValidator documentAccessValidator) {
         this.documentRepositoryPort = documentRepositoryPort;
         this.documentMapper = documentMapper;
         this.eventPublisherPort = eventPublisherPort;
+        this.documentAccessValidator = documentAccessValidator;
     }
 
     public GetDocumentService(DocumentRepositoryPort documentRepositoryPort,
                               DocumentMapper documentMapper) {
-        this(documentRepositoryPort, documentMapper, null);
+        this(documentRepositoryPort, documentMapper, null, null);
     }
 
     @Override
     public DocumentResponseDto getDocumentById(UUID documentId) {
+        return getDocumentById(documentId, null);
+    }
+
+    @Override
+    public DocumentResponseDto getDocumentById(UUID documentId, UUID userId) {
         Document document = documentRepositoryPort.findById(documentId)
                 .orElseThrow(() -> new NotFoundException(
                         ErrorCode.DOCUMENT_NOT_FOUND,
                         "Document with ID " + documentId + " was not found."
                 ));
+
+        if (documentAccessValidator != null) {
+            documentAccessValidator.validateAccess(document, userId, "READ");
+        }
 
         if (eventPublisherPort != null) {
             eventPublisherPort.publish(new com.awb.ged.domain.document.event.DocumentViewedEvent(

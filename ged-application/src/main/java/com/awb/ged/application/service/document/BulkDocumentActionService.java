@@ -1,6 +1,7 @@
 package com.awb.ged.application.service.document;
 
 import com.awb.ged.application.port.in.document.BulkDocumentActionUseCase;
+import com.awb.ged.application.port.in.security.DocumentAccessValidator;
 import com.awb.ged.application.port.out.persistence.DocumentRepositoryPort;
 import com.awb.ged.application.port.out.persistence.FolderRepositoryPort;
 import com.awb.ged.common.exception.ErrorCode;
@@ -23,19 +24,22 @@ public class BulkDocumentActionService implements BulkDocumentActionUseCase {
     private final DocumentRepositoryPort documentRepositoryPort;
     private final FolderRepositoryPort folderRepositoryPort;
     private final EventPublisherPort eventPublisherPort;
+    private final DocumentAccessValidator documentAccessValidator;
 
     @Autowired
     public BulkDocumentActionService(DocumentRepositoryPort documentRepositoryPort,
                                      FolderRepositoryPort folderRepositoryPort,
-                                     EventPublisherPort eventPublisherPort) {
+                                     EventPublisherPort eventPublisherPort,
+                                     DocumentAccessValidator documentAccessValidator) {
         this.documentRepositoryPort = documentRepositoryPort;
         this.folderRepositoryPort = folderRepositoryPort;
         this.eventPublisherPort = eventPublisherPort;
+        this.documentAccessValidator = documentAccessValidator;
     }
 
     public BulkDocumentActionService(DocumentRepositoryPort documentRepositoryPort,
                                      FolderRepositoryPort folderRepositoryPort) {
-        this(documentRepositoryPort, folderRepositoryPort, null);
+        this(documentRepositoryPort, folderRepositoryPort, null, null);
     }
 
     @Override
@@ -43,6 +47,9 @@ public class BulkDocumentActionService implements BulkDocumentActionUseCase {
         Instant now = Instant.now();
         for (UUID id : documentIds) {
             documentRepositoryPort.findById(id).ifPresent(doc -> {
+                if (documentAccessValidator != null) {
+                    documentAccessValidator.validateAccess(doc, performedBy, "DELETE");
+                }
                 Document deleted = doc.toBuilder()
                         .deletedAt(now)
                         .deletedBy(performedBy)
@@ -79,6 +86,9 @@ public class BulkDocumentActionService implements BulkDocumentActionUseCase {
         Instant now = Instant.now();
         for (UUID id : documentIds) {
             documentRepositoryPort.findById(id).ifPresent(doc -> {
+                if (documentAccessValidator != null) {
+                    documentAccessValidator.validateAccess(doc, performedBy, "WRITE");
+                }
                 Document moved = doc.toBuilder()
                         .folderId(destination)
                         .updatedAt(now)
@@ -92,6 +102,9 @@ public class BulkDocumentActionService implements BulkDocumentActionUseCase {
     public void bulkTag(List<UUID> documentIds, List<String> tagNames, UUID performedBy) {
         for (UUID id : documentIds) {
             documentRepositoryPort.findById(id).ifPresent(doc -> {
+                if (documentAccessValidator != null) {
+                    documentAccessValidator.validateAccess(doc, performedBy, "WRITE");
+                }
                 for (String tagName : tagNames) {
                     if (tagName != null && !tagName.isBlank()) {
                         documentRepositoryPort.addTagToDocument(id, tagName.trim());

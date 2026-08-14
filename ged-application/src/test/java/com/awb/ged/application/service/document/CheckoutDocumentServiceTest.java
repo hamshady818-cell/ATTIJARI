@@ -27,11 +27,14 @@ class CheckoutDocumentServiceTest {
     @Mock
     private DocumentRepositoryPort documentRepositoryPort;
 
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     private CheckoutDocumentService checkoutDocumentService;
 
     @BeforeEach
     void setUp() {
-        checkoutDocumentService = new CheckoutDocumentService(documentRepositoryPort);
+        checkoutDocumentService = new CheckoutDocumentService(documentRepositoryPort, eventPublisher);
     }
 
     @Test

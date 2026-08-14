@@ -52,8 +52,7 @@ class UploadNewVersionServiceTest {
         uploadNewVersionService = new UploadNewVersionService(
                 documentRepositoryPort,
                 storagePort,
-                documentMapper,
-                eventPublisherPort
+                documentMapper
         );
     }
 

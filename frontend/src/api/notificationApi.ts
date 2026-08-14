@@ -1,80 +1,68 @@
 import { apiClient } from './client';
 import { NotificationItem } from '../types';
 
+/** Raw shape returned by GET /api/v1/notifications (matches NotificationResponseDto). */
+interface NotificationResponseDto {
+  id: string;
+  type: string;
+  title: string;
+  body?: string;
+  entityType?: string;
+  entityId?: string;
+  channel?: string;
+  status: string;
+  readAt?: string;
+  sentAt?: string;
+  createdAt: string;
+}
+
+/** Maps the backend DTO to the frontend NotificationItem, deriving the `read` boolean. */
+function mapDto(dto: NotificationResponseDto): NotificationItem {
+  return {
+    id: dto.id,
+    type: dto.type as NotificationItem['type'],
+    title: dto.title,
+    body: dto.body,
+    entityType: dto.entityType,
+    entityId: dto.entityId,
+    channel: dto.channel,
+    status: dto.status as NotificationItem['status'],
+    readAt: dto.readAt,
+    sentAt: dto.sentAt,
+    createdAt: dto.createdAt,
+    read: dto.status === 'READ',
+  };
+}
+
 export const notificationApi = {
   /**
    * Récupère la liste des notifications de l'utilisateur courant.
-   * Retourne des données de démonstration en cas d'erreur (endpoint optionnel).
+   * En cas d'erreur (réseau, auth, etc.), retourne un tableau vide
+   * et loggue l'erreur dans la console — ne masque plus les vrais problèmes backend.
    */
   list: async (): Promise<NotificationItem[]> => {
     try {
-      const res = await apiClient.get<NotificationItem[]>('/notifications');
-      return res.data;
-    } catch {
-      // Endpoint non encore déployé : retourner des données de démonstration
-      return getDemoNotifications();
+      const res = await apiClient.get<NotificationResponseDto[]>('/notifications');
+      return res.data.map(mapDto);
+    } catch (err) {
+      console.error('[notificationApi.list] Failed to fetch notifications:', err);
+      return [];
     }
   },
 
   /**
    * Marque une notification spécifique comme lue.
+   * Propage l'erreur — l'appelant (useMutation) gère le cas d'échec.
    */
   markAsRead: async (id: string): Promise<void> => {
-    try {
-      await apiClient.patch(`/notifications/${id}/read`);
-    } catch {
-      // Silently fail if endpoint not available
-    }
+    await apiClient.patch(`/notifications/${id}/read`);
   },
 
   /**
    * Marque toutes les notifications comme lues.
+   * Propage l'erreur — l'appelant (useMutation) gère le cas d'échec.
    */
   markAllAsRead: async (): Promise<void> => {
-    try {
-      await apiClient.patch('/notifications/read-all');
-    } catch {
-      // Silently fail if endpoint not available
-    }
+    await apiClient.patch('/notifications/read-all');
   },
 };
-
-/**
- * Données de démonstration pour afficher le panel quand le backend
- * n'a pas encore d'endpoint /notifications.
- */
-function getDemoNotifications(): NotificationItem[] {
-  return [
-    {
-      id: 'demo-1',
-      type: 'DOCUMENT_UPLOADED',
-      message: 'Nouveau document "Rapport Q2 2026.pdf" versé dans Finances.',
-      relatedDocumentName: 'Rapport Q2 2026.pdf',
-      read: false,
-      createdAt: new Date(Date.now() - 5 * 60_000).toISOString(),
-    },
-    {
-      id: 'demo-2',
-      type: 'CHECKOUT_REQUESTED',
-      message: 'Document "Contrat fournisseur" verrouillé par Ahmed K.',
-      relatedDocumentName: 'Contrat fournisseur',
-      read: false,
-      createdAt: new Date(Date.now() - 30 * 60_000).toISOString(),
-    },
-    {
-      id: 'demo-3',
-      type: 'DOCUMENT_UPDATED',
-      message: 'Statut du document "Politique RH v3" changé → PUBLIÉ.',
-      relatedDocumentName: 'Politique RH v3',
-      read: true,
-      createdAt: new Date(Date.now() - 2 * 3_600_000).toISOString(),
-    },
-    {
-      id: 'demo-4',
-      type: 'SYSTEM',
-      message: 'Sauvegarde automatique effectuée avec succès.',
-      read: true,
-      createdAt: new Date(Date.now() - 24 * 3_600_000).toISOString(),
-    },
-  ];
-}

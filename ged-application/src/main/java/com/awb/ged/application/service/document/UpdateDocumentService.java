@@ -5,6 +5,7 @@ import com.awb.ged.application.dto.document.DocumentResponseDto;
 import com.awb.ged.application.dto.document.UpdateDocumentCommand;
 import com.awb.ged.application.mapper.DocumentMapper;
 import com.awb.ged.application.port.in.document.UpdateDocumentUseCase;
+import com.awb.ged.application.port.in.security.DocumentAccessValidator;
 import com.awb.ged.application.port.out.audit.AuditLogPort;
 import com.awb.ged.application.port.out.persistence.CategoryRepositoryPort;
 import com.awb.ged.application.port.out.persistence.DepartmentRepositoryPort;
@@ -38,6 +39,7 @@ public class UpdateDocumentService implements UpdateDocumentUseCase {
     private final UserRepositoryPort userRepositoryPort;
     private final AuditLogPort auditLogPort;
     private final DocumentMapper documentMapper;
+    private final DocumentAccessValidator documentAccessValidator;
 
     @Autowired
     public UpdateDocumentService(DocumentRepositoryPort documentRepositoryPort,
@@ -46,7 +48,8 @@ public class UpdateDocumentService implements UpdateDocumentUseCase {
                                  DepartmentRepositoryPort departmentRepositoryPort,
                                  UserRepositoryPort userRepositoryPort,
                                  AuditLogPort auditLogPort,
-                                 DocumentMapper documentMapper) {
+                                 DocumentMapper documentMapper,
+                                 DocumentAccessValidator documentAccessValidator) {
         this.documentRepositoryPort = documentRepositoryPort;
         this.folderRepositoryPort = folderRepositoryPort;
         this.categoryRepositoryPort = categoryRepositoryPort;
@@ -54,6 +57,17 @@ public class UpdateDocumentService implements UpdateDocumentUseCase {
         this.userRepositoryPort = userRepositoryPort;
         this.auditLogPort = auditLogPort;
         this.documentMapper = documentMapper;
+        this.documentAccessValidator = documentAccessValidator;
+    }
+
+    public UpdateDocumentService(DocumentRepositoryPort documentRepositoryPort,
+                                 FolderRepositoryPort folderRepositoryPort,
+                                 CategoryRepositoryPort categoryRepositoryPort,
+                                 DepartmentRepositoryPort departmentRepositoryPort,
+                                 UserRepositoryPort userRepositoryPort,
+                                 AuditLogPort auditLogPort,
+                                 DocumentMapper documentMapper) {
+        this(documentRepositoryPort, folderRepositoryPort, categoryRepositoryPort, departmentRepositoryPort, userRepositoryPort, auditLogPort, documentMapper, null);
     }
 
     @Override
@@ -64,6 +78,10 @@ public class UpdateDocumentService implements UpdateDocumentUseCase {
                         ErrorCode.DOCUMENT_NOT_FOUND,
                         "Document with ID " + documentId + " was not found."
                 ));
+
+        if (documentAccessValidator != null) {
+            documentAccessValidator.validateAccess(document, currentUserId, "WRITE");
+        }
 
         // 2. Validate not locked by another user
         if (document.isCurrentlyLocked(Instant.now())) {

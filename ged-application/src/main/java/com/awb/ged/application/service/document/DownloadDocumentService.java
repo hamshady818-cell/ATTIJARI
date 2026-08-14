@@ -1,6 +1,7 @@
 package com.awb.ged.application.service.document;
 
 import com.awb.ged.application.port.in.document.DownloadDocumentUseCase;
+import com.awb.ged.application.port.in.security.DocumentAccessValidator;
 import com.awb.ged.application.port.out.persistence.DocumentRepositoryPort;
 import com.awb.ged.application.port.out.storage.StoragePort;
 import com.awb.ged.common.exception.ErrorCode;
@@ -20,20 +21,37 @@ public class DownloadDocumentService implements DownloadDocumentUseCase {
 
     private final DocumentRepositoryPort documentRepositoryPort;
     private final StoragePort storagePort;
+    private final DocumentAccessValidator documentAccessValidator;
 
     @Autowired
-    public DownloadDocumentService(DocumentRepositoryPort documentRepositoryPort, StoragePort storagePort) {
+    public DownloadDocumentService(DocumentRepositoryPort documentRepositoryPort,
+                                   StoragePort storagePort,
+                                   DocumentAccessValidator documentAccessValidator) {
         this.documentRepositoryPort = documentRepositoryPort;
         this.storagePort = storagePort;
+        this.documentAccessValidator = documentAccessValidator;
+    }
+
+    public DownloadDocumentService(DocumentRepositoryPort documentRepositoryPort, StoragePort storagePort) {
+        this(documentRepositoryPort, storagePort, null);
     }
 
     @Override
     public DownloadResult download(UUID documentId, UUID versionId) {
+        return download(documentId, versionId, null);
+    }
+
+    @Override
+    public DownloadResult download(UUID documentId, UUID versionId, UUID userId) {
         Document document = documentRepositoryPort.findById(documentId)
                 .orElseThrow(() -> new NotFoundException(
                         ErrorCode.DOCUMENT_NOT_FOUND,
                         "Document with ID " + documentId + " was not found."
                 ));
+
+        if (documentAccessValidator != null) {
+            documentAccessValidator.validateAccess(document, userId, "READ");
+        }
 
         UUID targetVersionId = versionId != null ? versionId : document.getActiveVersionId();
         if (targetVersionId == null) {

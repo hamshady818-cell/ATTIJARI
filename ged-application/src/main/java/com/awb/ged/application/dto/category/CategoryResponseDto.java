@@ -17,6 +17,8 @@ public class CategoryResponseDto {
     private String name;
     private UUID parentId;
     private String path;
+    /** Security classification key (e.g., "FINANCE") — corresponds to Keycloak client role DOC_TYPE_* */
+    private String securityClass;
     private Instant createdAt;
     private Instant updatedAt;
 }

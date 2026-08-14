@@ -89,6 +89,20 @@ public class CategoryJpaEntity extends BaseEntity {
     @Column(name = "icon", length = 50)
     private String icon;
 
+    /**
+     * Security classification key for document type access control.
+     * <p>
+     * Must match (in uppercase) the suffix of a Keycloak client role on {@code ged-boot}:
+     * {@code DOC_TYPE_FINANCE} → {@code "FINANCE"}.
+     * </p>
+     * <p>
+     * {@code null} means no document type restriction is enforced for this category.
+     * </p>
+     */
+    @Size(max = 50)
+    @Column(name = "security_class", length = 50)
+    private String securityClass;
+
     // ─────────────────────────────────────────────────────────────────────────
     //  Self-referential hierarchy
     // ─────────────────────────────────────────────────────────────────────────

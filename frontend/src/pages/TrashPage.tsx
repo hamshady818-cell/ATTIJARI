@@ -4,13 +4,12 @@ import { trashApi } from '../api/trashApi';
 import { Header } from '../components/layout/Header';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
+import { Pagination } from '../components/ui/Pagination';
 import {
   Trash2,
   RotateCcw,
   FileText,
   Folder,
-  ChevronLeft,
-  ChevronRight,
   Loader2,
 } from 'lucide-react';
 
@@ -56,35 +55,6 @@ export const TrashPage: React.FC = () => {
     } finally {
       setRestoringId(null);
     }
-  };
-
-  // Handle page size selection
-  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newSize = Number(e.target.value);
-    setPageSize(newSize);
-    setPage(0); // Always reset to page 0 on size change
-  };
-
-  // Helper for generating pagination page numbers
-  const getPageNumbers = () => {
-    const pages: (number | string)[] = [];
-    if (totalPages <= 7) {
-      for (let i = 0; i < totalPages; i++) pages.push(i);
-    } else {
-      pages.push(0);
-      if (page > 2) pages.push('...');
-
-      const start = Math.max(1, page - 1);
-      const end = Math.min(totalPages - 2, page + 1);
-
-      for (let i = start; i <= end; i++) {
-        pages.push(i);
-      }
-
-      if (page < totalPages - 3) pages.push('...');
-      pages.push(totalPages - 1);
-    }
-    return pages;
   };
 
   return (
@@ -188,96 +158,18 @@ export const TrashPage: React.FC = () => {
             </table>
           </div>
 
-          {/* Pagination Footer */}
-          {totalElements > 0 && (
-            <div className="p-4 border-t border-brand-border bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-brand-muted">
-              {/* Information Text */}
-              <div className="flex items-center gap-4">
-                <span>
-                  Affichage de <strong className="text-brand-text">{startItem}</strong> à{' '}
-                  <strong className="text-brand-text">{endItem}</strong> sur{' '}
-                  <strong className="text-brand-text">{totalElements}</strong> documents
-                </span>
-                <span className="hidden sm:inline text-slate-300">|</span>
-                <span>
-                  Page <strong className="text-brand-text">{page + 1}</strong> sur{' '}
-                  <strong className="text-brand-text">{totalPages}</strong>
-                </span>
-              </div>
-
-              {/* Controls */}
-              <div className="flex items-center gap-4">
-                {/* Page Size Selector */}
-                <div className="flex items-center gap-2">
-                  <span>Documents par page :</span>
-                  <select
-                    value={pageSize}
-                    onChange={handlePageSizeChange}
-                    className="bg-white border border-brand-border rounded px-2 py-1 text-xs font-medium text-brand-text focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                  </select>
-                </div>
-
-                {/* Page Navigation Buttons */}
-                <div className="flex items-center gap-1">
-                  {/* Previous Button */}
-                  <button
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
-                    disabled={isFirst || isLoading}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded border text-xs font-medium transition-colors ${
-                      isFirst || isLoading
-                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-                        : 'bg-white text-brand-text border-brand-border hover:bg-slate-100 hover:text-brand-primary'
-                    }`}
-                  >
-                    <ChevronLeft className="w-3.5 h-3.5" />
-                    <span>Précédent</span>
-                  </button>
-
-                  {/* Direct Page Numbers */}
-                  <div className="flex items-center gap-1">
-                    {getPageNumbers().map((pNum, idx) =>
-                      typeof pNum === 'number' ? (
-                        <button
-                          key={idx}
-                          onClick={() => setPage(pNum)}
-                          disabled={isLoading}
-                          className={`w-7 h-7 rounded text-xs font-semibold flex items-center justify-center transition-colors ${
-                            page === pNum
-                              ? 'bg-brand-primary text-white shadow-sm'
-                              : 'bg-white text-brand-text border border-brand-border hover:bg-red-50 hover:text-brand-primary'
-                          }`}
-                        >
-                          {pNum + 1}
-                        </button>
-                      ) : (
-                        <span key={idx} className="px-1 text-slate-400">
-                          {pNum}
-                        </span>
-                      )
-                    )}
-                  </div>
-
-                  {/* Next Button */}
-                  <button
-                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                    disabled={isLast || isLoading}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded border text-xs font-medium transition-colors ${
-                      isLast || isLoading
-                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-                        : 'bg-white text-brand-text border-brand-border hover:bg-slate-100 hover:text-brand-primary'
-                    }`}
-                  >
-                    <span>Suivant</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            totalElements={totalElements}
+            totalPages={totalPages}
+            isFirst={isFirst}
+            isLast={isLast}
+            isLoading={isLoading}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => { setPageSize(size); setPage(0); }}
+            label="documents"
+          />
         </div>
       </main>
     </div>

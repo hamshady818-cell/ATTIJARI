@@ -153,8 +153,13 @@ export const NotificationPanel: React.FC = () => {
                   {/* Corps */}
                   <div className="flex-1 min-w-0">
                     <p className={`leading-snug ${notif.read ? 'font-normal' : 'font-medium'}`}>
-                      {notif.message}
+                      {notif.title}
                     </p>
+                    {notif.body && (
+                      <p className="text-[10px] text-brand-muted mt-0.5 leading-snug truncate">
+                        {notif.body}
+                      </p>
+                    )}
                     <span className="text-[10px] text-brand-muted mt-0.5 block">
                       {formatRelative(notif.createdAt)}
                     </span>

@@ -1,6 +1,7 @@
 package com.awb.ged.application.service.document;
 
 import com.awb.ged.application.port.in.document.PreviewDocumentUseCase;
+import com.awb.ged.application.port.in.security.DocumentAccessValidator;
 import com.awb.ged.application.port.out.persistence.DocumentRepositoryPort;
 import com.awb.ged.application.port.out.storage.StoragePort;
 import com.awb.ged.common.exception.BusinessException;
@@ -38,20 +39,37 @@ public class PreviewDocumentService implements PreviewDocumentUseCase {
 
     private final DocumentRepositoryPort documentRepositoryPort;
     private final StoragePort storagePort;
+    private final DocumentAccessValidator documentAccessValidator;
 
     @Autowired
-    public PreviewDocumentService(DocumentRepositoryPort documentRepositoryPort, StoragePort storagePort) {
+    public PreviewDocumentService(DocumentRepositoryPort documentRepositoryPort,
+                                  StoragePort storagePort,
+                                  DocumentAccessValidator documentAccessValidator) {
         this.documentRepositoryPort = documentRepositoryPort;
         this.storagePort = storagePort;
+        this.documentAccessValidator = documentAccessValidator;
+    }
+
+    public PreviewDocumentService(DocumentRepositoryPort documentRepositoryPort, StoragePort storagePort) {
+        this(documentRepositoryPort, storagePort, null);
     }
 
     @Override
     public PreviewResult preview(UUID documentId) {
+        return preview(documentId, null);
+    }
+
+    @Override
+    public PreviewResult preview(UUID documentId, UUID userId) {
         Document document = documentRepositoryPort.findById(documentId)
                 .orElseThrow(() -> new NotFoundException(
                         ErrorCode.DOCUMENT_NOT_FOUND,
                         "Document with ID " + documentId + " was not found."
                 ));
+
+        if (documentAccessValidator != null) {
+            documentAccessValidator.validateAccess(document, userId, "READ");
+        }
 
         if (document.getActiveVersionId() == null) {
             throw new NotFoundException(

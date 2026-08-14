@@ -33,6 +33,26 @@ public class Category {
     /** Materialized path in dot-notation for hierarchy traversal */
     private String path;
 
+    /**
+     * Security classification key used to enforce document type access control.
+     * <p>
+     * This value (e.g., {@code "FINANCE"}) must match, in uppercase, the suffix of a Keycloak
+     * client role on {@code ged-boot}: {@code DOC_TYPE_FINANCE}.
+     * </p>
+     * <p>
+     * When {@code null}, no document type restriction is enforced for this category;
+     * any authenticated user with department access may access documents of this category.
+     * </p>
+     * <p>
+     * Example mapping:
+     * <ul>
+     *   <li>securityClass {@code "FINANCE"} ↔ Keycloak role {@code DOC_TYPE_FINANCE}</li>
+     *   <li>securityClass {@code "RH"} ↔ Keycloak role {@code DOC_TYPE_RH}</li>
+     * </ul>
+     * </p>
+     */
+    private String securityClass;
+
     /** UTC timestamp when the category was created */
     private Instant createdAt;
 

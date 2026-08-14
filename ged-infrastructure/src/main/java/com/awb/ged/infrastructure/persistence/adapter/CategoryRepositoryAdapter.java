@@ -74,6 +74,7 @@ public class CategoryRepositoryAdapter implements CategoryRepositoryPort {
                 .name(entity.getName())
                 .parentId(entity.getParentCategory() != null ? entity.getParentCategory().getId() : null)
                 .path(entity.getPath())
+                .securityClass(entity.getSecurityClass())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
@@ -91,6 +92,7 @@ public class CategoryRepositoryAdapter implements CategoryRepositoryPort {
                 .name(domain.getName())
                 .path(domain.getPath() != null ? domain.getPath() : "")
                 .parentCategory(parent)
+                .securityClass(domain.getSecurityClass())
                 .build();
 
         if (domain.getId() != null) {

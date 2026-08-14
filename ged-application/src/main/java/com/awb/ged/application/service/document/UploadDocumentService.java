@@ -4,6 +4,7 @@ import com.awb.ged.application.dto.document.DocumentResponseDto;
 import com.awb.ged.application.dto.document.UploadDocumentCommand;
 import com.awb.ged.application.mapper.DocumentMapper;
 import com.awb.ged.application.port.in.document.UploadDocumentUseCase;
+import com.awb.ged.application.port.in.security.DocumentAccessValidator;
 import com.awb.ged.application.port.out.event.EventPublisherPort;
 import com.awb.ged.application.port.out.persistence.DocumentRepositoryPort;
 import com.awb.ged.application.port.out.persistence.FolderRepositoryPort;
@@ -36,6 +37,7 @@ public class UploadDocumentService implements UploadDocumentUseCase {
     private final StoragePort storagePort;
     private final DocumentMapper documentMapper;
     private final EventPublisherPort eventPublisherPort;
+    private final DocumentAccessValidator documentAccessValidator;
 
     @Autowired
     public UploadDocumentService(DocumentRepositoryPort documentRepositoryPort,
@@ -43,13 +45,15 @@ public class UploadDocumentService implements UploadDocumentUseCase {
                                  UserRepositoryPort userRepositoryPort,
                                  StoragePort storagePort,
                                  DocumentMapper documentMapper,
-                                 EventPublisherPort eventPublisherPort) {
+                                 EventPublisherPort eventPublisherPort,
+                                 DocumentAccessValidator documentAccessValidator) {
         this.documentRepositoryPort = documentRepositoryPort;
         this.folderRepositoryPort = folderRepositoryPort;
         this.userRepositoryPort = userRepositoryPort;
         this.storagePort = storagePort;
         this.documentMapper = documentMapper;
         this.eventPublisherPort = eventPublisherPort;
+        this.documentAccessValidator = documentAccessValidator;
     }
 
     public UploadDocumentService(DocumentRepositoryPort documentRepositoryPort,
@@ -57,7 +61,7 @@ public class UploadDocumentService implements UploadDocumentUseCase {
                                  UserRepositoryPort userRepositoryPort,
                                  StoragePort storagePort,
                                  DocumentMapper documentMapper) {
-        this(documentRepositoryPort, folderRepositoryPort, userRepositoryPort, storagePort, documentMapper, null);
+        this(documentRepositoryPort, folderRepositoryPort, userRepositoryPort, storagePort, documentMapper, null, null);
     }
 
     @Override
@@ -78,6 +82,15 @@ public class UploadDocumentService implements UploadDocumentUseCase {
                             ErrorCode.USER_NOT_FOUND,
                             "User with ID " + command.getOwnerId() + " was not found."
                     ));
+        }
+
+        // 2b. Validate authorization for target category/department before uploading
+        if (documentAccessValidator != null && command.getCategoryId() != null) {
+            Document transientDoc = Document.builder()
+                    .folderId(command.getFolderId())
+                    .categoryId(command.getCategoryId())
+                    .build();
+            documentAccessValidator.validateAccess(transientDoc, command.getOwnerId(), "WRITE");
         }
 
         // 3. Check name uniqueness in target folder

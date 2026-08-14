@@ -94,58 +94,32 @@ public class TrashRepositoryAdapter implements TrashRepositoryPort {
     public PageResponse<TrashItem> findTrash(UUID userId, boolean isAdminOrManager, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Order.desc("deletedAt"), Sort.Order.desc("id")));
 
-        // 1. Query documentJpaRepository for documents with TRASHED status
-        Page<DocumentJpaEntity> docPage = isAdminOrManager
-                ? documentJpaRepository.findByStatus(DocumentJpaEntity.DocumentStatus.TRASHED, pageable)
-                : documentJpaRepository.findTrashedByUser(userId, pageable);
+        // Query documentJpaRepository for documents with TRASHED status or non-null deletedAt
+        Page<DocumentJpaEntity> docPage = documentJpaRepository.findTrashedDocuments(pageable);
 
-        if (!docPage.isEmpty() || docPage.getTotalElements() > 0) {
-            List<TrashItem> content = docPage.getContent().stream()
-                    .map(doc -> TrashItem.builder()
-                            .id(doc.getId())
-                            .entityType("DOCUMENT")
-                            .entityId(doc.getId())
-                            .name(doc.getTitle())
-                            .originalFolderId(doc.getFolder() != null ? doc.getFolder().getId() : null)
-                            .deletedBy(doc.getDeletedBy() != null ? doc.getDeletedBy().getId() : (doc.getOwner() != null ? doc.getOwner().getId() : null))
-                            .ownerUsername(doc.getOwner() != null ? doc.getOwner().getUsername() : (doc.getDeletedBy() != null ? doc.getDeletedBy().getUsername() : null))
-                            .deletedAt(doc.getDeletedAt() != null ? doc.getDeletedAt() : doc.getUpdatedAt())
-                            .autoPurgeAt(doc.getDeletedAt() != null ? doc.getDeletedAt().plus(30, java.time.temporal.ChronoUnit.DAYS) : java.time.Instant.now().plus(30, java.time.temporal.ChronoUnit.DAYS))
-                            .build())
-                    .toList();
-
-            return PageResponse.<TrashItem>builder()
-                    .content(content)
-                    .pageNumber(docPage.getNumber())
-                    .pageSize(docPage.getSize())
-                    .totalElements(docPage.getTotalElements())
-                    .totalPages(docPage.getTotalPages())
-                    .first(docPage.isFirst())
-                    .last(docPage.isLast())
-                    .empty(docPage.isEmpty())
-                    .sortBy("deletedAt")
-                    .sortDirection("DESC")
-                    .build();
-        }
-
-        // 2. Fallback to trash table if no TRASHED documents found
-        Page<TrashJpaEntity> jpaPage = isAdminOrManager
-                ? trashJpaRepository.findByPurgedAtIsNull(pageable)
-                : trashJpaRepository.findByDeletedByIdAndPurgedAtIsNull(userId, pageable);
-
-        List<TrashItem> content = jpaPage.getContent().stream()
-                .map(this::mapToDomain)
+        List<TrashItem> content = docPage.getContent().stream()
+                .map(doc -> TrashItem.builder()
+                        .id(doc.getId())
+                        .entityType("DOCUMENT")
+                        .entityId(doc.getId())
+                        .name(doc.getTitle())
+                        .originalFolderId(doc.getFolder() != null ? doc.getFolder().getId() : null)
+                        .deletedBy(doc.getDeletedBy() != null ? doc.getDeletedBy().getId() : (doc.getOwner() != null ? doc.getOwner().getId() : null))
+                        .ownerUsername(doc.getOwner() != null ? doc.getOwner().getUsername() : (doc.getDeletedBy() != null ? doc.getDeletedBy().getUsername() : "Agent GED"))
+                        .deletedAt(doc.getDeletedAt() != null ? doc.getDeletedAt() : doc.getUpdatedAt())
+                        .autoPurgeAt(doc.getDeletedAt() != null ? doc.getDeletedAt().plus(30, java.time.temporal.ChronoUnit.DAYS) : java.time.Instant.now().plus(30, java.time.temporal.ChronoUnit.DAYS))
+                        .build())
                 .toList();
 
         return PageResponse.<TrashItem>builder()
                 .content(content)
-                .pageNumber(jpaPage.getNumber())
-                .pageSize(jpaPage.getSize())
-                .totalElements(jpaPage.getTotalElements())
-                .totalPages(jpaPage.getTotalPages())
-                .first(jpaPage.isFirst())
-                .last(jpaPage.isLast())
-                .empty(jpaPage.isEmpty())
+                .pageNumber(docPage.getNumber())
+                .pageSize(docPage.getSize())
+                .totalElements(docPage.getTotalElements())
+                .totalPages(docPage.getTotalPages())
+                .first(docPage.isFirst())
+                .last(docPage.isLast())
+                .empty(docPage.isEmpty())
                 .sortBy("deletedAt")
                 .sortDirection("DESC")
                 .build();

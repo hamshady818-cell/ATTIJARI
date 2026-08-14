@@ -41,7 +41,7 @@ public class TrashController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('TRASH_READ') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PageResponse<TrashItemResponseDto>> getTrash(
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "10") int size) {
@@ -53,7 +53,7 @@ public class TrashController {
     }
 
     @PostMapping("/{id}/restore")
-    @PreAuthorize("hasAuthority('TRASH_RESTORE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> restoreFromTrash(@PathVariable("id") UUID id) {
         UUID userId = resolveCurrentUserId();
         restoreFromTrashUseCase.restoreFromTrash(id, userId);

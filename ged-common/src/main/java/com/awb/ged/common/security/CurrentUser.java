@@ -41,4 +41,17 @@ public class CurrentUser {
 
     /** Database identifier of the user's department (if assigned) */
     UUID departmentId;
+
+    /**
+     * Set of document type access identifiers resolved from Keycloak client roles prefixed with
+     * {@code DOC_TYPE_} on the {@code ged-boot} client.
+     * <p>
+     * Example: if the user has client role {@code DOC_TYPE_FINANCE}, this set contains {@code "FINANCE"}.
+     * </p>
+     * <p>
+     * Used by {@code DocumentAccessValidatorImpl} to verify whether the user is authorized
+     * to access a document whose category has a matching {@code securityClass}.
+     * </p>
+     */
+    Set<String> documentTypeAccess;
 }

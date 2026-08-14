@@ -15,6 +15,7 @@ import { UploadModal } from '../components/explorer/UploadModal';
 import { CreateFolderModal } from '../components/explorer/CreateFolderModal';
 import { DeleteFolderModal } from '../components/explorer/DeleteFolderModal';
 import { Button } from '../components/ui/Button';
+import { Pagination } from '../components/ui/Pagination';
 import {
   DocumentItem,
   DocumentSearchResult,
@@ -37,6 +38,10 @@ export const ExplorerPage: React.FC = () => {
   const [activeFilterType, setActiveFilterType] = useState<'all' | 'folder' | 'drafts'>('folder');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const queryClient = useQueryClient();
+
+  // Pagination state for the folder-documents query
+  const [page, setPage] = useState<number>(0);
+  const [pageSize, setPageSize] = useState<number>(20);
 
   // Search & Filter State
   const [filters, setFilters] = useState<SearchFilterParams>({
@@ -75,7 +80,7 @@ export const ExplorerPage: React.FC = () => {
     queryFn: refApi.getCategories,
   });
 
-  // Query Folder Content / Root Content
+  // Query Folder Content / Root Content — used ONLY for subFolders and currentFolder metadata
   const {
     data: folderContent,
     refetch: refetchFolderContent,
@@ -83,27 +88,44 @@ export const ExplorerPage: React.FC = () => {
   } = useQuery({
     queryKey: ['folder-content', selectedFolderId, activeFilterType],
     queryFn: async () => {
-      if (activeFilterType === 'drafts') {
-        const p = await documentApi.search({ status: 'DRAFT', size: 50 });
-        return { currentFolder: undefined, subFolders: [], documents: p.content as any };
-      }
-      if (activeFilterType === 'all') {
-        const p = await documentApi.search({ size: 50 });
-        return { currentFolder: undefined, subFolders: [], documents: p.content as any };
+      if (activeFilterType === 'drafts' || activeFilterType === 'all') {
+        return { currentFolder: undefined, subFolders: [], documents: [] };
       }
       return selectedFolderId ? folderApi.getFolderContent(selectedFolderId) : folderApi.getRootContent();
     },
   });
+
+  // Paginated documents query (replaces the non-paginated folderContent.documents)
+  const isSearchActive =
+    !!filters.keyword || !!filters.status || !!filters.categoryId || !!filters.tagName;
+
+  const {
+    data: folderDocsPage,
+    isLoading: isLoadingFolderDocs,
+  } = useQuery({
+    queryKey: ['folder-documents', selectedFolderId, activeFilterType, page, pageSize],
+    queryFn: () => {
+      if (activeFilterType === 'drafts')
+        return documentApi.search({ status: 'DRAFT', page, size: pageSize });
+      if (activeFilterType === 'all')
+        return documentApi.search({ page, size: pageSize });
+      return documentApi.search({ folderId: selectedFolderId, page, size: pageSize });
+    },
+    enabled: !isSearchActive,
+  });
+
+  // Pagination metadata derived from the paginated query
+  const totalElements = folderDocsPage?.totalElements ?? 0;
+  const totalPages   = folderDocsPage?.totalPages   ?? 0;
+  const isFirst      = folderDocsPage?.first  ?? page === 0;
+  const isLast       = folderDocsPage?.last   ?? (totalPages === 0 || page >= totalPages - 1);
+  const isLoadingDocs = isLoadingFolderContent || isLoadingFolderDocs;
 
   // Query All Folders flat list for tree sidebar navigation and modals
   const { data: allFoldersData = [], refetch: refetchAllFolders } = useQuery<FolderItem[]>({
     queryKey: ['all-folders-tree'],
     queryFn: folderApi.getAllFolders,
   });
-
-  // Dynamic search query when filters are applied
-  const isSearchActive =
-    !!filters.keyword || !!filters.status || !!filters.categoryId || !!filters.tagName;
 
   const { data: searchResults, refetch: refetchSearch } = useQuery({
     queryKey: ['search-documents', filters],
@@ -113,11 +135,12 @@ export const ExplorerPage: React.FC = () => {
 
   const displayedDocuments = isSearchActive
     ? searchResults?.content || []
-    : folderContent?.documents || [];
+    : folderDocsPage?.content || [];
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['all-folders-tree'] });
     queryClient.invalidateQueries({ queryKey: ['folder-content'] });
+    queryClient.invalidateQueries({ queryKey: ['folder-documents'] });
     queryClient.invalidateQueries({ queryKey: ['search-documents'] });
     refetchFolderContent();
     refetchAllFolders();
@@ -148,7 +171,12 @@ export const ExplorerPage: React.FC = () => {
       if (activeDocument && selectedDocIds.includes(activeDocument.id)) {
         setActiveDocument(null);
       }
+      // Edge case: if deleting the last item on a non-first page, go back one page
+      if (displayedDocuments.length <= selectedDocIds.length && page > 0) {
+        setPage((p) => p - 1);
+      }
       await queryClient.invalidateQueries({ queryKey: ['folder-content'] });
+      await queryClient.invalidateQueries({ queryKey: ['folder-documents'] });
       await queryClient.invalidateQueries({ queryKey: ['search-documents'] });
       handleRefresh();
     } catch (err: any) {
@@ -164,6 +192,7 @@ export const ExplorerPage: React.FC = () => {
         setActiveDocument(null);
       }
       await queryClient.invalidateQueries({ queryKey: ['folder-content'] });
+      await queryClient.invalidateQueries({ queryKey: ['folder-documents'] });
       await queryClient.invalidateQueries({ queryKey: ['search-documents'] });
       handleRefresh();
     } catch (err: any) {
@@ -204,7 +233,12 @@ export const ExplorerPage: React.FC = () => {
       if (activeDocument?.id === id) {
         setActiveDocument(null);
       }
+      // Edge case: if this was the last document on a non-first page, go back one page
+      if (displayedDocuments.length === 1 && page > 0) {
+        setPage((p) => p - 1);
+      }
       await queryClient.invalidateQueries({ queryKey: ['folder-content'] });
+      await queryClient.invalidateQueries({ queryKey: ['folder-documents'] });
       await queryClient.invalidateQueries({ queryKey: ['search-documents'] });
       handleRefresh();
     } catch (err: any) {
@@ -299,11 +333,15 @@ export const ExplorerPage: React.FC = () => {
           selectedFolderId={selectedFolderId}
           onSelectFolder={(id) => {
             setSelectedFolderId(id);
+            setPage(0); // Reset page on folder change
             setFilters((prev) => ({ ...prev, keyword: '', page: 0 }));
           }}
           onCreateFolderClick={() => setIsCreateFolderOpen(true)}
           activeFilterType={activeFilterType}
-          onSelectFilterType={setActiveFilterType}
+          onSelectFilterType={(ft) => {
+            setActiveFilterType(ft);
+            setPage(0); // Reset page on filter type change
+          }}
           onMoveDocument={handleMoveDocument}
           onDeleteFolder={handleDeleteFolder}
         />
@@ -476,6 +514,23 @@ export const ExplorerPage: React.FC = () => {
                 }))
               }
             />
+            {/* Pagination — only shown in folder/all/drafts mode, not during search */}
+            {!isSearchActive && (
+              <div className="bg-brand-surface border border-brand-border rounded-b-lg border-t-0">
+                <Pagination
+                  page={page}
+                  pageSize={pageSize}
+                  totalElements={totalElements}
+                  totalPages={totalPages}
+                  isFirst={isFirst}
+                  isLast={isLast}
+                  isLoading={isLoadingDocs}
+                  onPageChange={setPage}
+                  onPageSizeChange={(size) => { setPageSize(size); setPage(0); }}
+                  label="documents"
+                />
+              </div>
+            )}
           </div>
         </main>
       </div>

@@ -67,14 +67,14 @@ public class FolderController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('FOLDER_READ') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER') or hasRole('VIEWER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<FolderResponseDto>> getAllFolders() {
         List<FolderResponseDto> folders = getAllFoldersUseCase.getAllFolders();
         return ResponseEntity.ok(folders);
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('FOLDER_CREATE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<FolderResponseDto> createFolder(@Valid @RequestBody CreateFolderRequest request) {
         UUID ownerId = resolveCurrentUserId();
 
@@ -91,21 +91,21 @@ public class FolderController {
     }
 
     @GetMapping("/{id}/content")
-    @PreAuthorize("hasAuthority('FOLDER_READ') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER') or hasRole('VIEWER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<FolderContentResponseDto> getFolderContent(@PathVariable("id") UUID id) {
         FolderContentResponseDto content = getFolderContentUseCase.getFolderContent(id);
         return ResponseEntity.ok(content);
     }
 
     @GetMapping("/content")
-    @PreAuthorize("hasAuthority('FOLDER_READ') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER') or hasRole('VIEWER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<FolderContentResponseDto> getRootContent() {
         FolderContentResponseDto content = getFolderContentUseCase.getFolderContent(null);
         return ResponseEntity.ok(content);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('FOLDER_DELETE') or hasRole('ADMIN') or hasRole('MANAGER') or hasRole('USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> deleteFolder(
             @PathVariable("id") UUID id,
             @RequestParam(name = "force", defaultValue = "false") boolean force) {

@@ -1,6 +1,7 @@
 package com.awb.ged.application.service.document;
 
 import com.awb.ged.application.port.in.document.DeleteDocumentUseCase;
+import com.awb.ged.application.port.in.security.DocumentAccessValidator;
 import com.awb.ged.application.port.out.event.EventPublisherPort;
 import com.awb.ged.application.port.out.persistence.DocumentRepositoryPort;
 import com.awb.ged.common.exception.ErrorCode;
@@ -20,12 +21,19 @@ public class DeleteDocumentService implements DeleteDocumentUseCase {
 
     private final DocumentRepositoryPort documentRepositoryPort;
     private final EventPublisherPort eventPublisherPort;
+    private final DocumentAccessValidator documentAccessValidator;
 
     @Autowired
     public DeleteDocumentService(DocumentRepositoryPort documentRepositoryPort,
-                                 EventPublisherPort eventPublisherPort) {
+                                 EventPublisherPort eventPublisherPort,
+                                 DocumentAccessValidator documentAccessValidator) {
         this.documentRepositoryPort = documentRepositoryPort;
         this.eventPublisherPort = eventPublisherPort;
+        this.documentAccessValidator = documentAccessValidator;
+    }
+
+    public DeleteDocumentService(DocumentRepositoryPort documentRepositoryPort, EventPublisherPort eventPublisherPort) {
+        this(documentRepositoryPort, eventPublisherPort, null);
     }
 
     @Override
@@ -35,6 +43,10 @@ public class DeleteDocumentService implements DeleteDocumentUseCase {
                         ErrorCode.DOCUMENT_NOT_FOUND,
                         "Document with ID " + documentId + " was not found."
                 ));
+
+        if (documentAccessValidator != null) {
+            documentAccessValidator.validateAccess(document, deletedByUserId, "DELETE");
+        }
 
         document.setDeletedAt(Instant.now());
         document.setDeletedBy(deletedByUserId);
