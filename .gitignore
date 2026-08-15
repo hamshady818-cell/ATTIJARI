@@ -4,3 +4,10 @@ target/
 .idea/
 *.iml
 .vscode/
+
+# Fichiers de stockage local (MinIO filesystem / dev)
+storage-data/
+ged-boot/storage-data/
+
+# Environment & secrets
+.env
