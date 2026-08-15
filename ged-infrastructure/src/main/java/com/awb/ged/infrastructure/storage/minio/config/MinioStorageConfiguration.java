@@ -13,8 +13,8 @@ public class MinioStorageConfiguration {
     @Bean
     public MinioClient minioClient(
             @Value("${ged.storage.minio.endpoint:http://localhost:9000}") String endpoint,
-            @Value("${ged.storage.minio.access-key:minioadmin}") String accessKey,
-            @Value("${ged.storage.minio.secret-key:minioadmin}") String secretKey) {
+            @Value("${ged.storage.minio.access-key}") String accessKey,
+            @Value("${ged.storage.minio.secret-key}") String secretKey) {
 
         return MinioClient.builder()
                 .endpoint(endpoint)
