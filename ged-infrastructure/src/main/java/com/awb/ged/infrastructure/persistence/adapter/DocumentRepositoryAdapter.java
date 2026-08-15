@@ -162,6 +162,16 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
     }
 
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<Document> findExpiredActiveDocuments(java.time.LocalDate today) {
+        return documentJpaRepository.findExpiredActiveDocuments(today)
+                .stream()
+                .map(this::mapToDomain)
+                .toList();
+    }
+
+
     // --- Document Version Operations ---
 
     @Override

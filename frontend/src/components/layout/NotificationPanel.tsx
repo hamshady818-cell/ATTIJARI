@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bell, X, Check, CheckCheck, Upload, Edit, Trash2, Share2, Lock, Unlock, MessageSquare, Cpu } from 'lucide-react';
+import { Bell, X, Check, CheckCheck, Upload, Edit, Trash2, Share2, Lock, Unlock, MessageSquare, Cpu, Clock } from 'lucide-react';
 import { notificationApi } from '../../api/notificationApi';
 import { NotificationItem, NotificationType } from '../../types';
 
@@ -12,6 +12,7 @@ const NotificationIcon: React.FC<{ type: NotificationType }> = ({ type }) => {
     case 'DOCUMENT_UPDATED':    return <Edit {...props} className="w-3.5 h-3.5 text-brand-secondary shrink-0" />;
     case 'DOCUMENT_DELETED':    return <Trash2 {...props} className="w-3.5 h-3.5 text-brand-primary shrink-0" />;
     case 'DOCUMENT_SHARED':     return <Share2 {...props} className="w-3.5 h-3.5 text-brand-secondary shrink-0" />;
+    case 'DOCUMENT_EXPIRED':    return <Clock {...props} className="w-3.5 h-3.5 text-red-600 shrink-0" />;
     case 'CHECKOUT_REQUESTED':  return <Lock {...props} className="w-3.5 h-3.5 text-brand-secondary shrink-0" />;
     case 'CHECKIN_DONE':        return <Unlock {...props} className="w-3.5 h-3.5 text-emerald-700 shrink-0" />;
     case 'COMMENT_ADDED':       return <MessageSquare {...props} className="w-3.5 h-3.5 text-brand-primary shrink-0" />;

@@ -59,4 +59,21 @@ public interface DocumentJpaRepository
     @Modifying
     @Query("UPDATE DocumentJpaEntity d SET d.deletedAt = :deletedAt, d.status = 'TRASHED' WHERE d.id IN :ids AND d.deletedAt IS NULL")
     int bulkSoftDelete(@Param("ids") List<UUID> ids, @Param("deletedAt") Instant deletedAt);
+
+    /**
+     * Returns all non-deleted documents whose {@code expirationDate} is strictly before
+     * {@code today} and whose status is {@code PUBLISHED} or {@code DRAFT}.
+     * Documents already {@code ARCHIVED} or {@code TRASHED} are excluded.
+     */
+    @Query("""
+            SELECT d FROM DocumentJpaEntity d
+             WHERE d.expirationDate < :today
+               AND d.status IN (
+                     com.awb.ged.infrastructure.persistence.entity.document.DocumentJpaEntity.DocumentStatus.PUBLISHED,
+                     com.awb.ged.infrastructure.persistence.entity.document.DocumentJpaEntity.DocumentStatus.DRAFT
+                   )
+               AND d.deletedAt IS NULL
+            """)
+    List<DocumentJpaEntity> findExpiredActiveDocuments(@Param("today") java.time.LocalDate today);
 }
+

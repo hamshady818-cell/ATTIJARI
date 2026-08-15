@@ -38,6 +38,16 @@ public interface DocumentRepositoryPort {
 
     PageResponse<DocumentSearchResultDto> search(DocumentSearchQuery query);
 
+    /**
+     * Returns all active documents whose {@code expirationDate} is strictly before {@code today}.
+     * Only documents with status {@code PUBLISHED} or {@code DRAFT} are considered;
+     * documents already {@code ARCHIVED} or {@code TRASHED} are excluded.
+     *
+     * @param today the reference date (typically {@link java.time.LocalDate#now()})
+     * @return a non-null, possibly empty list of expired active documents
+     */
+    List<Document> findExpiredActiveDocuments(java.time.LocalDate today);
+
     // --- Document Version Operations ---
 
     DocumentVersion saveVersion(DocumentVersion version);

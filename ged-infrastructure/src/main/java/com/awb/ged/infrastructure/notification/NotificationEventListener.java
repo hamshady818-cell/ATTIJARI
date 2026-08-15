@@ -108,8 +108,21 @@ public class NotificationEventListener {
     }
 
     @org.springframework.context.event.EventListener
-    public void handleDocumentCheckedOut(DocumentCheckedOutEvent event) {
+    public void handleDocumentExpired(DocumentExpiredEvent event) {
         if (event.getOwnerId() == null) return;
+        save(buildNotification(
+                event.getOwnerId(),
+                "DOCUMENT_EXPIRED",
+                "Document expiré",
+                "Le document «" + event.getDocumentName() + "» a expiré et a été archivé automatiquement.",
+                "DOCUMENT",
+                event.getDocumentId()
+        ));
+    }
+
+    @org.springframework.context.event.EventListener
+    public void handleDocumentCheckedOut(DocumentCheckedOutEvent event) {
+        if (event.getOwnerId() == null || isSelfAction(event.getCheckedOutBy(), event.getOwnerId())) return;
         save(buildNotification(
                 event.getOwnerId(),
                 "CHECKOUT_REQUESTED",
@@ -122,7 +135,7 @@ public class NotificationEventListener {
 
     @org.springframework.context.event.EventListener
     public void handleDocumentCheckedIn(DocumentCheckedInEvent event) {
-        if (event.getOwnerId() == null) return;
+        if (event.getOwnerId() == null || isSelfAction(event.getCheckedInBy(), event.getOwnerId())) return;
         save(buildNotification(
                 event.getOwnerId(),
                 "CHECKIN_DONE",
