@@ -17,6 +17,8 @@ import {
   FolderInput,
 } from 'lucide-react';
 import { documentApi } from '../../api/documentApi';
+import { toast } from 'react-hot-toast';
+import { extractErrorMessage } from '../../utils/errorMessages';
 
 interface DocumentTableProps {
   documents: (DocumentItem | DocumentSearchResult)[];
@@ -51,15 +53,48 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
 }) => {
   const isAllSelected = documents.length > 0 && selectedIds.length === documents.length;
 
-  const getMimeIcon = (mimeType?: string) => {
-    if (!mimeType) return <File className="w-4 h-4 text-brand-muted shrink-0" />;
-    if (mimeType.includes('pdf')) return <FileText className="w-4 h-4 text-brand-primary shrink-0" />;
-    if (mimeType.includes('image')) return <ImageIcon className="w-4 h-4 text-brand-secondary shrink-0" />;
-    if (mimeType.includes('sheet') || mimeType.includes('excel'))
-      return <FileSpreadsheet className="w-4 h-4 text-emerald-700 shrink-0" />;
-    if (mimeType.includes('word') || mimeType.includes('document'))
-      return <FileText className="w-4 h-4 text-brand-primary shrink-0" />;
-    return <FileCode className="w-4 h-4 text-brand-muted shrink-0" />;
+  const getMimeIcon = (mimeType?: string, name?: string) => {
+    const n = name?.toLowerCase() || '';
+    const mime = mimeType?.toLowerCase() || '';
+
+    if (mime.includes('pdf') || n.endsWith('.pdf')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black bg-red-500/10 text-red-600 border border-red-500/20 shrink-0">
+          <FileText className="w-3 h-3 text-red-500" />
+          PDF
+        </span>
+      );
+    }
+    if (mime.includes('sheet') || mime.includes('excel') || n.endsWith('.xlsx') || n.endsWith('.xls')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 shrink-0">
+          <FileSpreadsheet className="w-3 h-3 text-emerald-600" />
+          XLSX
+        </span>
+      );
+    }
+    if (mime.includes('word') || mime.includes('document') || n.endsWith('.docx') || n.endsWith('.doc')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black bg-blue-500/10 text-blue-700 border border-blue-500/20 shrink-0">
+          <FileCode className="w-3 h-3 text-blue-600" />
+          DOCX
+        </span>
+      );
+    }
+    if (mime.includes('image') || n.endsWith('.png') || n.endsWith('.jpg') || n.endsWith('.jpeg')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black bg-purple-500/10 text-purple-700 border border-purple-500/20 shrink-0">
+          <ImageIcon className="w-3 h-3 text-purple-600" />
+          IMG
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black bg-gray-500/10 text-gray-700 border border-gray-500/20 shrink-0">
+        <File className="w-3 h-3 text-gray-500" />
+        DOC
+      </span>
+    );
   };
 
   const formatDate = (dateStr?: string) => {
@@ -144,7 +179,7 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                   {/* Document Name + Icon + Lock indicator */}
                   <td>
                     <div className="flex items-center gap-2.5">
-                      {getMimeIcon(doc.mimeType)}
+                      {getMimeIcon(doc.mimeType, doc.name)}
                       <button
                         onClick={() => onSelectDocument(doc)}
                         className="font-medium text-xs text-brand-text hover:text-brand-primary hover:underline text-left truncate max-w-xs"
@@ -235,8 +270,9 @@ export const DocumentTable: React.FC<DocumentTableProps> = ({
                           e.stopPropagation();
                           try {
                             await documentApi.downloadFile(doc.id, doc.name);
+                            toast.success('Téléchargement démarré');
                           } catch (err: any) {
-                            alert('Erreur lors du téléchargement: ' + (err.response?.data?.message || err.message));
+                            toast.error(extractErrorMessage(err, 'Échec du téléchargement du document.'));
                           }
                         }}
                         className="p-1.5 text-brand-muted hover:text-brand-primary hover:bg-brand-primary-light border border-transparent hover:border-brand-primary/30 rounded-md transition-colors"

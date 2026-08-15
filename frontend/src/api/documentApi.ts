@@ -8,6 +8,7 @@ import {
   SearchFilterParams,
   DocumentStatus,
   UpdateDocumentPayload,
+  BulkActionResult,
 } from '../types';
 
 export const documentApi = {
@@ -131,21 +132,24 @@ export const documentApi = {
   },
 
   // Bulk Delete
-  bulkDelete: async (documentIds: string[]): Promise<void> => {
-    await apiClient.delete('/documents/bulk', { data: documentIds });
+  bulkDelete: async (documentIds: string[]): Promise<BulkActionResult> => {
+    const res = await apiClient.delete('/documents/bulk', { data: documentIds });
+    return res.data;
   },
 
   // Bulk Move
-  bulkMove: async (documentIds: string[], targetFolderId?: string, moveToRoot = false): Promise<void> => {
-    await apiClient.patch('/documents/bulk/move', documentIds, {
+  bulkMove: async (documentIds: string[], targetFolderId?: string, moveToRoot = false): Promise<BulkActionResult> => {
+    const res = await apiClient.patch('/documents/bulk/move', documentIds, {
       params: { targetFolderId, moveToRoot },
     });
+    return res.data;
   },
 
   // Bulk Tag
-  bulkTag: async (documentIds: string[], tagNames: string[]): Promise<void> => {
-    await apiClient.post('/documents/bulk/tag', documentIds, {
+  bulkTag: async (documentIds: string[], tagNames: string[]): Promise<BulkActionResult> => {
+    const res = await apiClient.post('/documents/bulk/tag', documentIds, {
       params: { tagNames: tagNames.join(',') },
     });
+    return res.data;
   },
 };

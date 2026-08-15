@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DocumentItem, DocumentSearchResult } from '../../types';
 import { documentApi } from '../../api/documentApi';
+import { toast } from 'react-hot-toast';
+import { extractErrorMessage } from '../../utils/errorMessages';
 import { renderAsync } from 'docx-preview';
 import * as XLSX from 'xlsx';
 import {
@@ -151,8 +153,9 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   const handleDownload = async () => {
     try {
       await documentApi.downloadFile(document.id, document.name);
+      toast.success('Téléchargement démarré');
     } catch (err: any) {
-      alert('Erreur lors du téléchargement: ' + (err.response?.data?.message || err.message));
+      toast.error(extractErrorMessage(err, 'Échec du téléchargement du document.'));
     }
   };
 

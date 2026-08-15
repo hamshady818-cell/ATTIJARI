@@ -4,6 +4,8 @@ import com.awb.ged.application.port.in.document.ExpireDocumentsUseCase;
 import com.awb.ged.application.port.in.document.UpdateDocumentStatusUseCase;
 import com.awb.ged.application.port.out.event.EventPublisherPort;
 import com.awb.ged.application.port.out.persistence.DocumentRepositoryPort;
+import com.awb.ged.common.exception.BusinessException;
+import com.awb.ged.common.exception.ErrorCode;
 import com.awb.ged.domain.document.event.DocumentExpiredEvent;
 import com.awb.ged.domain.document.model.Document;
 import org.slf4j.Logger;
@@ -68,24 +70,33 @@ public class ExpireDocumentsService implements ExpireDocumentsUseCase {
 
         List<Document> expired = documentRepositoryPort.findExpiredActiveDocuments(today);
 
+        int archivedCount = 0;
         for (Document document : expired) {
-            // Delegate transition logic (validates DRAFT/PUBLISHED → ARCHIVED)
-            // currentUserId = null → system-initiated action, no human actor
-            updateDocumentStatusUseCase.updateStatus(document.getId(), "ARCHIVED", null);
+            try {
+                // Delegate transition logic (validates DRAFT/PUBLISHED → ARCHIVED)
+                // currentUserId = null → system-initiated action, no human actor
+                updateDocumentStatusUseCase.updateStatus(document.getId(), "ARCHIVED", null);
 
-            // Notify listeners: audit trail, notifications, etc.
-            eventPublisherPort.publish(new DocumentExpiredEvent(
-                    document.getId(),
-                    document.getName(),
-                    document.getOwnerId(),
-                    document.getExpirationDate()
-            ));
+                // Notify listeners: audit trail, notifications, etc.
+                eventPublisherPort.publish(new DocumentExpiredEvent(
+                        document.getId(),
+                        document.getName(),
+                        document.getOwnerId(),
+                        document.getExpirationDate()
+                ));
+                archivedCount++;
+            } catch (BusinessException e) {
+                if (e.getErrorCode() == ErrorCode.DOCUMENT_LOCKED) {
+                    log.info("[ExpireDocumentsService] Document {} verrouillé, archivage reporté", document.getId());
+                } else {
+                    throw e;
+                }
+            }
         }
 
-        int count = expired.size();
         log.info("[ExpireDocumentsService] {} document(s) archived due to expiration (reference date: {}).",
-                count, today);
+                archivedCount, today);
 
-        return count;
+        return archivedCount;
     }
 }

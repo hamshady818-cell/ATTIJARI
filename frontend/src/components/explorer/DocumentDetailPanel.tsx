@@ -3,6 +3,8 @@ import { DocumentItem, DocumentSearchResult, DocumentVersion } from '../../types
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { documentApi } from '../../api/documentApi';
+import { toast } from 'react-hot-toast';
+import { extractErrorMessage } from '../../utils/errorMessages';
 import { EditDocumentModal } from './EditDocumentModal';
 import {
   X,
@@ -110,12 +112,13 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
       if (changeSummary) formData.append('changeSummary', changeSummary);
 
       await documentApi.uploadVersion(document.id, formData);
+      toast.success('Nouvelle version ajoutée avec succès');
       setNewVersionFile(null);
       setChangeSummary('');
       refetchVersions();
       onRefresh();
     } catch (err: any) {
-      alert('Erreur lors du versement de la version: ' + (err.response?.data?.message || err.message));
+      toast.error(extractErrorMessage(err, 'Échec de l\'envoi de la nouvelle version.'));
     } finally {
       setIsUploadingVersion(false);
     }

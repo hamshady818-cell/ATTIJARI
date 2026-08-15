@@ -87,31 +87,47 @@ public class NotificationRepositoryAdapter implements NotificationRepositoryPort
     private NotificationJpaEntity mapToEntity(Notification domain) {
         if (domain == null) return null;
 
+        NotificationJpaEntity entity;
+        if (domain.getId() != null) {
+            entity = notificationJpaRepository.findById(domain.getId())
+                    .orElseGet(() -> {
+                        NotificationJpaEntity newEntity = new NotificationJpaEntity();
+                        newEntity.setId(domain.getId());
+                        return newEntity;
+                    });
+        } else {
+            entity = new NotificationJpaEntity();
+        }
+
         UserJpaEntity user = null;
         if (domain.getUserId() != null) {
             user = userJpaRepository.findById(domain.getUserId()).orElse(null);
         }
 
-        NotificationJpaEntity.Channel channelEnum = domain.getChannel() != null ? NotificationJpaEntity.Channel.valueOf(domain.getChannel().name()) : NotificationJpaEntity.Channel.IN_APP;
+        NotificationJpaEntity.Channel channelEnum = domain.getChannel() != null
+                ? NotificationJpaEntity.Channel.valueOf(domain.getChannel().name())
+                : NotificationJpaEntity.Channel.IN_APP;
         NotificationJpaEntity.NotificationStatus statusEnum = NotificationJpaEntity.NotificationStatus.valueOf(domain.getStatus().toUpperCase());
 
-        NotificationJpaEntity entity = NotificationJpaEntity.builder()
-                .type(domain.getType())
-                .title(domain.getTitle())
-                .body(domain.getBody())
-                .entityType(domain.getEntityType())
-                .entityId(domain.getEntityId())
-                .channel(channelEnum)
-                .status(statusEnum)
-                .readAt(domain.getReadAt())
-                .sentAt(domain.getSentAt())
-                .expiresAt(domain.getExpiresAt())
-                .user(user)
-                .build();
+        entity.setType(domain.getType());
+        entity.setTitle(domain.getTitle());
+        entity.setBody(domain.getBody());
+        entity.setEntityType(domain.getEntityType());
+        entity.setEntityId(domain.getEntityId());
+        entity.setChannel(channelEnum);
+        entity.setStatus(statusEnum);
+        entity.setReadAt(domain.getReadAt());
+        entity.setSentAt(domain.getSentAt());
+        entity.setExpiresAt(domain.getExpiresAt());
+        entity.setUser(user);
 
-        if (domain.getId() != null) {
-            entity.setId(domain.getId());
+        if (domain.getCreatedAt() != null) {
+            entity.setCreatedAt(domain.getCreatedAt());
         }
+        if (domain.getUpdatedAt() != null) {
+            entity.setUpdatedAt(domain.getUpdatedAt());
+        }
+
         return entity;
     }
 }

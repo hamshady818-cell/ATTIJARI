@@ -414,31 +414,31 @@ public class DocumentController {
 
     @DeleteMapping("/bulk")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> bulkDelete(@RequestBody List<UUID> documentIds) {
+    public ResponseEntity<BulkActionResultDto> bulkDelete(@RequestBody List<UUID> documentIds) {
         UUID currentUserId = resolveCurrentUserId();
-        bulkDocumentActionUseCase.bulkDelete(documentIds, currentUserId);
-        return ResponseEntity.noContent().build();
+        BulkActionResultDto result = bulkDocumentActionUseCase.bulkDelete(documentIds, currentUserId);
+        return ResponseEntity.ok(result);
     }
 
     @PatchMapping("/bulk/move")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> bulkMove(
+    public ResponseEntity<BulkActionResultDto> bulkMove(
             @RequestBody List<UUID> documentIds,
             @RequestParam(value = "targetFolderId", required = false) UUID targetFolderId,
             @RequestParam(value = "moveToRoot", defaultValue = "false") boolean moveToRoot) {
         UUID currentUserId = resolveCurrentUserId();
-        bulkDocumentActionUseCase.bulkMove(documentIds, targetFolderId, moveToRoot, currentUserId);
-        return ResponseEntity.ok().build();
+        BulkActionResultDto result = bulkDocumentActionUseCase.bulkMove(documentIds, targetFolderId, moveToRoot, currentUserId);
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/bulk/tag")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> bulkTag(
+    public ResponseEntity<BulkActionResultDto> bulkTag(
             @RequestBody List<UUID> documentIds,
             @RequestParam("tagNames") List<String> tagNames) {
         UUID currentUserId = resolveCurrentUserId();
-        bulkDocumentActionUseCase.bulkTag(documentIds, tagNames, currentUserId);
-        return ResponseEntity.ok().build();
+        BulkActionResultDto result = bulkDocumentActionUseCase.bulkTag(documentIds, tagNames, currentUserId);
+        return ResponseEntity.ok(result);
     }
 
     // =========================================================================

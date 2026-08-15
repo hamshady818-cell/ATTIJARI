@@ -6,6 +6,8 @@ import { Select } from '../ui/Select';
 import { FolderItem } from '../../types';
 import { FolderPlus } from 'lucide-react';
 import { folderApi } from '../../api/folderApi';
+import { toast } from 'react-hot-toast';
+import { extractErrorMessage } from '../../utils/errorMessages';
 
 interface CreateFolderModalProps {
   isOpen: boolean;
@@ -39,12 +41,14 @@ export const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
 
     try {
       setIsCreating(true);
-      await folderApi.createFolder(folderName.trim(), parentFolderId || undefined);
+      const createdName = folderName.trim();
+      await folderApi.createFolder(createdName, parentFolderId || undefined);
+      toast.success(`Dossier « ${createdName} » créé avec succès`);
       setFolderName('');
       onSuccess();
       onClose();
     } catch (err: any) {
-      alert('Erreur de création du dossier: ' + (err.response?.data?.message || err.message));
+      toast.error(extractErrorMessage(err, 'Échec de la création du dossier.'));
     } finally {
       setIsCreating(false);
     }

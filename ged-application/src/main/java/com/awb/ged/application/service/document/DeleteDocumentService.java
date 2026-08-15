@@ -22,18 +22,21 @@ public class DeleteDocumentService implements DeleteDocumentUseCase {
     private final DocumentRepositoryPort documentRepositoryPort;
     private final EventPublisherPort eventPublisherPort;
     private final DocumentAccessValidator documentAccessValidator;
+    private final DocumentLockGuard documentLockGuard;
 
     @Autowired
     public DeleteDocumentService(DocumentRepositoryPort documentRepositoryPort,
                                  EventPublisherPort eventPublisherPort,
-                                 DocumentAccessValidator documentAccessValidator) {
+                                 DocumentAccessValidator documentAccessValidator,
+                                 DocumentLockGuard documentLockGuard) {
         this.documentRepositoryPort = documentRepositoryPort;
         this.eventPublisherPort = eventPublisherPort;
         this.documentAccessValidator = documentAccessValidator;
+        this.documentLockGuard = documentLockGuard;
     }
 
     public DeleteDocumentService(DocumentRepositoryPort documentRepositoryPort, EventPublisherPort eventPublisherPort) {
-        this(documentRepositoryPort, eventPublisherPort, null);
+        this(documentRepositoryPort, eventPublisherPort, null, null);
     }
 
     @Override
@@ -43,6 +46,10 @@ public class DeleteDocumentService implements DeleteDocumentUseCase {
                         ErrorCode.DOCUMENT_NOT_FOUND,
                         "Document with ID " + documentId + " was not found."
                 ));
+
+        if (documentLockGuard != null) {
+            documentLockGuard.assertNotLockedByOther(documentId, deletedByUserId);
+        }
 
         if (documentAccessValidator != null) {
             documentAccessValidator.validateAccess(document, deletedByUserId, "DELETE");

@@ -3,6 +3,8 @@ package com.awb.ged.application.service.document;
 import com.awb.ged.application.port.in.document.UpdateDocumentStatusUseCase;
 import com.awb.ged.application.port.out.event.EventPublisherPort;
 import com.awb.ged.application.port.out.persistence.DocumentRepositoryPort;
+import com.awb.ged.common.exception.BusinessException;
+import com.awb.ged.common.exception.ErrorCode;
 import com.awb.ged.domain.document.event.DocumentExpiredEvent;
 import com.awb.ged.domain.document.model.Document;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,8 +20,12 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -135,5 +141,67 @@ class ExpireDocumentsServiceTest {
 
         verify(updateDocumentStatusUseCase, never()).updateStatus(any(), any(), any());
         verify(eventPublisherPort,          never()).publish(any());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Cas de verrouillage : document verrouillé ignoré
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("Should skip locked document but archive the others and not propagate the exception")
+    void expireOverdueDocuments_LockedDocument_SkippedAndOthersArchived() {
+        // Given
+        UUID docId1 = UUID.randomUUID();
+        UUID docId2Locked = UUID.randomUUID();
+        UUID docId3 = UUID.randomUUID();
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+
+        Document doc1 = Document.builder().id(docId1).name("Doc1.pdf").expirationDate(yesterday).build();
+        Document doc2Locked = Document.builder().id(docId2Locked).name("Doc2.pdf").expirationDate(yesterday).build();
+        Document doc3 = Document.builder().id(docId3).name("Doc3.pdf").expirationDate(yesterday).build();
+
+        given(documentRepositoryPort.findExpiredActiveDocuments(any(LocalDate.class)))
+                .willReturn(List.of(doc1, doc2Locked, doc3));
+
+        lenient().doThrow(new BusinessException(
+                ErrorCode.DOCUMENT_LOCKED,
+                "Document is locked"
+        )).when(updateDocumentStatusUseCase).updateStatus(docId2Locked, "ARCHIVED", null);
+
+        // When
+        int result = assertDoesNotThrow(() -> expireDocumentsService.expireOverdueDocuments());
+
+        // Then
+        assertThat(result).isEqualTo(2);
+
+        verify(eventPublisherPort, times(2)).publish(any());
+        verify(updateDocumentStatusUseCase, times(1)).updateStatus(docId1, "ARCHIVED", null);
+        verify(updateDocumentStatusUseCase, times(1)).updateStatus(docId2Locked, "ARCHIVED", null);
+        verify(updateDocumentStatusUseCase, times(1)).updateStatus(docId3, "ARCHIVED", null);
+    }
+
+    @Test
+    @DisplayName("Should propagate non-lock BusinessException")
+    void expireOverdueDocuments_NonLockException_Propagated() {
+        // Given
+        UUID docId = UUID.randomUUID();
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+
+        Document doc = Document.builder().id(docId).name("Doc.pdf").expirationDate(yesterday).build();
+
+        given(documentRepositoryPort.findExpiredActiveDocuments(any(LocalDate.class)))
+                .willReturn(List.of(doc));
+
+        willThrow(new BusinessException(
+                ErrorCode.DOCUMENT_NOT_FOUND,
+                "Document not found"
+        )).given(updateDocumentStatusUseCase).updateStatus(docId, "ARCHIVED", null);
+
+        // When / Then
+        assertThatThrownBy(() -> expireDocumentsService.expireOverdueDocuments())
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DOCUMENT_NOT_FOUND);
+
+        verify(eventPublisherPort, never()).publish(any());
     }
 }

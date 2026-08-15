@@ -5,6 +5,8 @@ import { Select } from '../ui/Select';
 import { CategoryItem, FolderItem } from '../../types';
 import { Upload, File, X } from 'lucide-react';
 import { documentApi } from '../../api/documentApi';
+import { toast } from 'react-hot-toast';
+import { extractErrorMessage } from '../../utils/errorMessages';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -88,11 +90,16 @@ export const UploadModal: React.FC<UploadModalProps> = ({
         await documentApi.bulkUpload(formData);
       }
 
+      toast.success(
+        files.length > 1
+          ? `${files.length} documents envoyés avec succès`
+          : 'Document envoyé avec succès'
+      );
       setFiles([]);
       onSuccess();
       onClose();
     } catch (err: any) {
-      alert('Erreur d\'envoi: ' + (err.response?.data?.message || err.message));
+      toast.error(extractErrorMessage(err, 'Échec de l\'envoi du document.'));
     } finally {
       setIsUploading(false);
     }

@@ -204,28 +204,75 @@ export const FolderTreeSidebar: React.FC<FolderTreeSidebarProps> = ({
   };
 
   return (
-    <>
-      {/* Floating expand button when collapsed */}
-      {isCollapsed && (
-        <button
-          onClick={() => setIsCollapsed(false)}
-          className="fixed left-3 top-20 z-30 p-2 bg-brand-surface border border-brand-border hover:border-brand-primary text-brand-primary rounded-r-lg shadow-md transition-all group hover:scale-105"
-          title="Afficher l'espace de classement"
-        >
-          <PanelLeftOpen className="w-4 h-4 text-brand-primary group-hover:scale-110 transition-transform" />
-        </button>
-      )}
+    <aside
+      ref={sidebarRef}
+      style={{ width: isCollapsed ? '48px' : `${sidebarWidth}px` }}
+      className={`relative bg-brand-surface border-r border-brand-border flex flex-col h-full shrink-0 select-none ${
+        isResizing ? 'transition-none' : 'transition-[width] duration-200 ease-in-out'
+      }`}
+    >
+      {isCollapsed ? (
+        /* Slim Collapsed Rail (48px wide) — takes space in flex layout, NEVER overlaps main content or Home icon */
+        <div className="flex flex-col items-center py-3 space-y-3.5 w-[48px] h-full bg-brand-surface">
+          <button
+            onClick={() => setIsCollapsed(false)}
+            className="p-2 bg-brand-primary-light border border-brand-primary/30 hover:bg-brand-primary hover:text-white text-brand-primary rounded-lg shadow-xs transition-all group"
+            title="Déplier l'espace de classement"
+          >
+            <PanelLeftOpen className="w-4 h-4 transition-transform group-hover:scale-110" />
+          </button>
 
-      {/* Main Sidebar Container */}
-      <aside
-        ref={sidebarRef}
-        style={{ width: isCollapsed ? 0 : `${sidebarWidth}px` }}
-        className={`relative bg-brand-surface border-r border-brand-border flex flex-col h-full shrink-0 select-none ${
-          isCollapsed ? 'overflow-hidden border-r-0' : ''
-        } ${isResizing ? 'transition-none' : 'transition-[width] duration-200 ease-in-out'}`}
-      >
-        {/* Resize Handle on Right Border */}
-        {!isCollapsed && (
+          <div className="w-5 h-px bg-brand-border" />
+
+          <button
+            onClick={() => {
+              onSelectFilterType('all');
+              onSelectFolder(undefined);
+            }}
+            className={`p-2 rounded-lg transition-all ${
+              activeFilterType === 'all'
+                ? 'bg-brand-primary text-white shadow-xs'
+                : 'text-brand-muted hover:text-brand-text hover:bg-brand-alt'
+            }`}
+            title="Tous les documents"
+          >
+            <Files className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => {
+              onSelectFilterType('folder');
+              onSelectFolder(undefined);
+            }}
+            className={`p-2 rounded-lg transition-all ${
+              activeFilterType === 'folder' && !selectedFolderId
+                ? 'bg-brand-primary text-white shadow-xs'
+                : 'text-brand-muted hover:text-brand-text hover:bg-brand-alt'
+            }`}
+            title="Racine (sans dossier)"
+          >
+            <HardDrive className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => {
+              onSelectFilterType('drafts');
+              onSelectFolder(undefined);
+            }}
+            className={`p-2 rounded-lg transition-all ${
+              activeFilterType === 'drafts'
+                ? 'bg-brand-primary text-white shadow-xs'
+                : 'text-brand-muted hover:text-brand-text hover:bg-brand-alt'
+            }`}
+            title="Mes Brouillons"
+          >
+            <FileClock className="w-4 h-4" />
+          </button>
+        </div>
+      ) : (
+        /* Expanded Sidebar */
+        <>
+          {/* Resize Handle on Right Border */}
           <div
             onMouseDown={startResizing}
             className={`absolute top-0 right-0 w-1.5 h-full cursor-col-resize z-20 group transition-colors hover:bg-brand-primary/40 active:bg-brand-primary ${
@@ -235,117 +282,117 @@ export const FolderTreeSidebar: React.FC<FolderTreeSidebarProps> = ({
           >
             <div className="w-0.5 h-8 bg-brand-muted/30 group-hover:bg-brand-primary absolute top-1/2 -translate-y-1/2 left-0.5 rounded-full" />
           </div>
-        )}
 
-        {/* Inner Content (Kept min-w to prevent text warping during transition) */}
-        <div style={{ minWidth: `${sidebarWidth}px` }} className="flex flex-col h-full">
-          {/* Sidebar Header */}
-          <div className="p-3.5 bg-brand-alt/50 border-b border-brand-border flex items-center justify-between min-w-0">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-brand-muted truncate pr-2">
-              Espace de classement
-            </span>
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                onClick={onCreateFolderClick}
-                className="p-1.5 bg-brand-surface border border-brand-border hover:border-brand-primary hover:text-brand-primary text-brand-text rounded-md shadow-xs transition-all"
-                title="Créer un nouveau dossier"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => setIsCollapsed(true)}
-                className="p-1.5 bg-brand-surface border border-brand-border hover:border-brand-primary hover:text-brand-primary text-brand-muted hover:text-brand-text rounded-md shadow-xs transition-all"
-                title="Masquer le panneau latéral"
-              >
-                <PanelLeftClose className="w-3.5 h-3.5" />
-              </button>
+          {/* Inner Content */}
+          <div style={{ minWidth: `${sidebarWidth}px` }} className="flex flex-col h-full">
+            {/* Sidebar Header */}
+            <div className="p-3.5 bg-brand-alt/50 border-b border-brand-border flex items-center justify-between min-w-0">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-brand-muted truncate pr-2">
+                Espace de classement
+              </span>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={onCreateFolderClick}
+                  className="p-1.5 bg-brand-surface border border-brand-border hover:border-brand-primary hover:text-brand-primary text-brand-text rounded-md shadow-xs transition-all"
+                  title="Créer un nouveau dossier"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setIsCollapsed(true)}
+                  className="p-1.5 bg-brand-surface border border-brand-border hover:border-brand-primary hover:text-brand-primary text-brand-muted hover:text-brand-text rounded-md shadow-xs transition-all"
+                  title="Masquer le panneau latéral"
+                >
+                  <PanelLeftClose className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
-          </div>
 
-          {/* Main Shortcuts */}
-          <div className="p-2 border-b border-brand-border flex flex-col gap-0.5">
-            <button
-              onClick={() => {
-                onSelectFilterType('all');
-                onSelectFolder(undefined);
-              }}
-              className={`flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-left rounded-md transition-all duration-150 ${
-                activeFilterType === 'all'
-                  ? 'bg-brand-primary-light text-brand-primary border-l-3 border-brand-primary'
-                  : 'text-brand-text hover:bg-brand-alt'
-              }`}
-            >
-              <Files className="w-4 h-4 text-brand-muted shrink-0" />
-              <span className="truncate">Tous les documents</span>
-            </button>
-
-            <button
-              onClick={() => {
-                onSelectFilterType('folder');
-                onSelectFolder(undefined);
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                setDragOverTarget('root');
-              }}
-              onDragLeave={() => setDragOverTarget(null)}
-              onDrop={(e) => handleDrop(e, undefined, true)}
-              className={`flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-left rounded-md transition-all duration-150 ${
-                dragOverTarget === 'root'
-                  ? 'bg-brand-primary-light border border-brand-primary text-brand-primary font-bold scale-[1.01]'
-                  : activeFilterType === 'folder' && !selectedFolderId
+            {/* Main Shortcuts */}
+            <div className="p-2 border-b border-brand-border flex flex-col gap-0.5">
+              <button
+                onClick={() => {
+                  onSelectFilterType('all');
+                  onSelectFolder(undefined);
+                }}
+                className={`flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-left rounded-md transition-all duration-150 ${
+                  activeFilterType === 'all'
                     ? 'bg-brand-primary-light text-brand-primary border-l-3 border-brand-primary'
                     : 'text-brand-text hover:bg-brand-alt'
-              }`}
-            >
-              <HardDrive className="w-4 h-4 text-brand-muted shrink-0" />
-              <span className="truncate">Racine (sans dossier)</span>
-            </button>
+                }`}
+              >
+                <Files className="w-4 h-4 text-brand-muted shrink-0" />
+                <span className="truncate">Tous les documents</span>
+              </button>
 
-            <button
-              onClick={() => {
-                onSelectFilterType('drafts');
-                onSelectFolder(undefined);
-              }}
-              className={`flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-left rounded-md transition-all duration-150 ${
-                activeFilterType === 'drafts'
-                  ? 'bg-brand-primary-light text-brand-primary border-l-3 border-brand-primary'
-                  : 'text-brand-text hover:bg-brand-alt'
-              }`}
-            >
-              <FileClock className="w-4 h-4 text-brand-muted shrink-0" />
-              <span className="truncate">Mes Brouillons</span>
-            </button>
-          </div>
+              <button
+                onClick={() => {
+                  onSelectFilterType('folder');
+                  onSelectFolder(undefined);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  setDragOverTarget('root');
+                }}
+                onDragLeave={() => setDragOverTarget(null)}
+                onDrop={(e) => handleDrop(e, undefined, true)}
+                className={`flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-left rounded-md transition-all duration-150 ${
+                  dragOverTarget === 'root'
+                    ? 'bg-brand-primary-light border border-brand-primary text-brand-primary font-bold scale-[1.01]'
+                    : activeFilterType === 'folder' && !selectedFolderId
+                      ? 'bg-brand-primary-light text-brand-primary border-l-3 border-brand-primary'
+                      : 'text-brand-text hover:bg-brand-alt'
+                }`}
+              >
+                <HardDrive className="w-4 h-4 text-brand-muted shrink-0" />
+                <span className="truncate">Racine (sans dossier)</span>
+              </button>
 
-          {/* Folder Tree List */}
-          <div className="flex-1 overflow-y-auto py-2">
-            <div className="px-3.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-brand-muted truncate">
-              Dossiers ({folders.length})
+              <button
+                onClick={() => {
+                  onSelectFilterType('drafts');
+                  onSelectFolder(undefined);
+                }}
+                className={`flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-left rounded-md transition-all duration-150 ${
+                  activeFilterType === 'drafts'
+                    ? 'bg-brand-primary-light text-brand-primary border-l-3 border-brand-primary'
+                    : 'text-brand-text hover:bg-brand-alt'
+                }`}
+              >
+                <FileClock className="w-4 h-4 text-brand-muted shrink-0" />
+                <span className="truncate">Mes Brouillons</span>
+              </button>
             </div>
-            {rootFolders.length === 0 ? (
-              <div className="px-3.5 py-4 text-center text-xs text-brand-muted italic">
-                Aucun dossier créé
+
+            {/* Folder Tree List */}
+            <div className="flex-1 overflow-y-auto py-2">
+              <div className="px-3.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-brand-muted truncate">
+                Dossiers ({folders.length})
               </div>
-            ) : (
-              rootFolders.map((folder) => renderFolderNode(folder, 0))
-            )}
-          </div>
+              {rootFolders.length === 0 ? (
+                <div className="px-3.5 py-4 text-center text-xs text-brand-muted italic">
+                  Aucun dossier créé
+                </div>
+              ) : (
+                rootFolders.map((folder) => renderFolderNode(folder, 0))
+              )}
+            </div>
 
-          {/* Storage Information footer */}
-          <div className="p-3.5 bg-brand-alt/50 border-t border-brand-border text-[11px] text-brand-muted">
-            <div className="flex justify-between font-mono mb-1.5">
-              <span className="truncate pr-1">MinIO GED Bucket</span>
-              <span className="font-bold text-brand-text shrink-0">ged-documents</span>
-            </div>
-            <div className="w-full bg-brand-border h-1.5 rounded-full overflow-hidden">
-              <div className="bg-brand-primary h-full w-[28%] rounded-full" />
+            {/* Storage Information footer */}
+            <div className="p-3.5 bg-brand-alt/50 border-t border-brand-border text-[11px] text-brand-muted">
+              <div className="flex justify-between font-mono mb-1.5">
+                <span className="truncate pr-1">MinIO GED Bucket</span>
+                <span className="font-bold text-brand-text shrink-0">ged-documents</span>
+              </div>
+              <div className="w-full bg-brand-border h-1.5 rounded-full overflow-hidden">
+                <div className="bg-brand-primary h-full w-[28%] rounded-full" />
+              </div>
             </div>
           </div>
-        </div>
-      </aside>
-    </>
+        </>
+      )}
+    </aside>
   );
 };
 

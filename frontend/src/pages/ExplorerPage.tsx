@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { folderApi } from '../api/folderApi';
 import { documentApi } from '../api/documentApi';
 import { refApi } from '../api/refApi';
+import { toast } from 'react-hot-toast';
+import { extractErrorMessage } from '../utils/errorMessages';
 import { Header } from '../components/layout/Header';
 import { FolderTreeSidebar } from '../components/layout/FolderTreeSidebar';
 import { DocumentTable } from '../components/explorer/DocumentTable';
@@ -14,9 +16,12 @@ import { MoveDocumentModal } from '../components/explorer/MoveDocumentModal';
 import { UploadModal } from '../components/explorer/UploadModal';
 import { CreateFolderModal } from '../components/explorer/CreateFolderModal';
 import { DeleteFolderModal } from '../components/explorer/DeleteFolderModal';
+import { BulkTagModal } from '../components/explorer/BulkTagModal';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { Button } from '../components/ui/Button';
 import { Pagination } from '../components/ui/Pagination';
 import {
+  BulkActionResult,
   DocumentItem,
   DocumentSearchResult,
   FolderItem,
@@ -73,6 +78,14 @@ export const ExplorerPage: React.FC = () => {
   const [isDeleteFolderModalOpen, setIsDeleteFolderModalOpen] = useState(false);
   const [isDeletingFolder, setIsDeletingFolder] = useState(false);
   const [deleteFolderDocCount, setDeleteFolderDocCount] = useState(0);
+
+  // Confirm Delete Modals state
+  const [deleteSingleDoc, setDeleteSingleDoc] = useState<{ id: string; name: string } | null>(null);
+  const [isDeletingSingle, setIsDeletingSingle] = useState(false);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  // Tag Modal state
+  const [isBulkTagOpen, setIsBulkTagOpen] = useState(false);
 
   // TanStack Query for Categories & Ref data
   const { data: categories = [] } = useQuery({
@@ -163,10 +176,14 @@ export const ExplorerPage: React.FC = () => {
   };
 
   // Bulk Actions
-  const handleBulkDelete = async () => {
-    if (!confirm(`Supprimer ${selectedDocIds.length} document(s) ?`)) return;
+  const handleBulkDelete = () => {
+    setIsBulkDeleteModalOpen(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    setIsDeletingBulk(true);
     try {
-      await documentApi.bulkDelete(selectedDocIds);
+      const result = await documentApi.bulkDelete(selectedDocIds);
       setSelectedDocIds([]);
       if (activeDocument && selectedDocIds.includes(activeDocument.id)) {
         setActiveDocument(null);
@@ -178,15 +195,28 @@ export const ExplorerPage: React.FC = () => {
       await queryClient.invalidateQueries({ queryKey: ['folder-content'] });
       await queryClient.invalidateQueries({ queryKey: ['folder-documents'] });
       await queryClient.invalidateQueries({ queryKey: ['search-documents'] });
+      if (result.processedCount > 0) {
+        toast.success(
+          `${result.processedCount} document(s) supprimé(s) avec succès`
+        );
+      }
+      if (result.skippedNames.length > 0) {
+        toast.error(
+          `${result.skippedNames.length} document(s) verrouillé(s) ignoré(s) : ${result.skippedNames.join(', ')}`
+        );
+      }
       handleRefresh();
     } catch (err: any) {
-      alert('Erreur lors de la suppression en masse: ' + (err.response?.data?.message || err.message));
+      toast.error(extractErrorMessage(err, 'Échec de la suppression en masse.'));
+    } finally {
+      setIsDeletingBulk(false);
+      setIsBulkDeleteModalOpen(false);
     }
   };
 
   const handleMoveDocument = async (documentIds: string[], targetFolderId?: string, moveToRoot = false) => {
     try {
-      await documentApi.bulkMove(documentIds, targetFolderId, moveToRoot);
+      const result = await documentApi.bulkMove(documentIds, targetFolderId, moveToRoot);
       setSelectedDocIds([]);
       if (activeDocument && documentIds.includes(activeDocument.id)) {
         setActiveDocument(null);
@@ -194,9 +224,19 @@ export const ExplorerPage: React.FC = () => {
       await queryClient.invalidateQueries({ queryKey: ['folder-content'] });
       await queryClient.invalidateQueries({ queryKey: ['folder-documents'] });
       await queryClient.invalidateQueries({ queryKey: ['search-documents'] });
+      if (result.processedCount > 0) {
+        toast.success(
+          `${result.processedCount} document(s) déplacé(s) avec succès`
+        );
+      }
+      if (result.skippedNames.length > 0) {
+        toast.error(
+          `${result.skippedNames.length} document(s) verrouillé(s) non déplacé(s) : ${result.skippedNames.join(', ')}`
+        );
+      }
       handleRefresh();
     } catch (err: any) {
-      alert('Erreur lors du déplacement: ' + (err.response?.data?.message || err.message));
+      toast.error(extractErrorMessage(err, 'Échec du déplacement des documents.'));
     }
   };
 
@@ -213,24 +253,32 @@ export const ExplorerPage: React.FC = () => {
     setIsMoveModalOpen(true);
   };
 
-  const handleBulkTag = async () => {
-    const tagsInput = prompt('Entrez les étiquettes séparées par des virgules (ex: urgent, finance) :');
-    if (!tagsInput) return;
-    const tagList = tagsInput.split(',').map((t) => t.trim()).filter(Boolean);
-    try {
-      await documentApi.bulkTag(selectedDocIds, tagList);
-      setSelectedDocIds([]);
-      handleRefresh();
-    } catch (err: any) {
-      alert('Erreur d\'étiquetage en masse: ' + (err.response?.data?.message || err.message));
-    }
+  const handleBulkTag = () => {
+    setIsBulkTagOpen(true);
   };
 
-  const handleDeleteSingle = async (id: string) => {
-    if (!confirm('Voulez-vous mettre ce document à la corbeille ?')) return;
+  const handleBulkTagSuccess = (result: BulkActionResult) => {
+    setSelectedDocIds([]);
+    if (result.processedCount > 0) {
+      toast.success(`${result.processedCount} document(s) étiqueté(s) avec succès`);
+    }
+    if (result.skippedNames.length > 0) {
+      toast.error(`${result.skippedNames.length} document(s) verrouillé(s) non étiqueté(s) : ${result.skippedNames.join(', ')}`);
+    }
+    handleRefresh();
+  };
+
+  const handleDeleteSingle = (id: string) => {
+    const doc = displayedDocuments.find((d) => d.id === id);
+    setDeleteSingleDoc({ id, name: doc?.name || 'ce document' });
+  };
+
+  const confirmDeleteSingle = async () => {
+    if (!deleteSingleDoc) return;
+    setIsDeletingSingle(true);
     try {
-      await documentApi.delete(id);
-      if (activeDocument?.id === id) {
+      await documentApi.delete(deleteSingleDoc.id);
+      if (activeDocument?.id === deleteSingleDoc.id) {
         setActiveDocument(null);
       }
       // Edge case: if this was the last document on a non-first page, go back one page
@@ -240,9 +288,13 @@ export const ExplorerPage: React.FC = () => {
       await queryClient.invalidateQueries({ queryKey: ['folder-content'] });
       await queryClient.invalidateQueries({ queryKey: ['folder-documents'] });
       await queryClient.invalidateQueries({ queryKey: ['search-documents'] });
+      toast.success('Document supprimé avec succès');
       handleRefresh();
     } catch (err: any) {
-      alert('Erreur de suppression: ' + (err.response?.data?.message || err.message));
+      toast.error(extractErrorMessage(err, 'Échec de la suppression du document.'));
+    } finally {
+      setIsDeletingSingle(false);
+      setDeleteSingleDoc(null);
     }
   };
 
@@ -254,7 +306,7 @@ export const ExplorerPage: React.FC = () => {
     const isLocked = Boolean(doc?.isLocked ?? (doc as any)?.locked);
 
     if (isLocked) {
-      alert('Ce document est déjà verrouillé.');
+      toast.error('Ce document est déjà verrouillé.');
       return;
     }
 
@@ -262,13 +314,14 @@ export const ExplorerPage: React.FC = () => {
       await documentApi.checkout(id);
       await queryClient.invalidateQueries({ queryKey: ['folder-content'] });
       await queryClient.invalidateQueries({ queryKey: ['search-documents'] });
+      toast.success('Document verrouillé pour édition');
       handleRefresh();
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || '';
       if (msg.includes('already checked out') || msg.includes('verrouillé')) {
-        alert('Ce document est déjà verrouillé par un autre utilisateur.');
+        toast.error('Ce document est déjà verrouillé par un autre utilisateur.');
       } else {
-        alert('Erreur de verrouillage: ' + (msg || 'Une erreur est survenue'));
+        toast.error(msg || 'Erreur de verrouillage.');
       }
     }
   };
@@ -278,9 +331,10 @@ export const ExplorerPage: React.FC = () => {
       await documentApi.checkin(id);
       await queryClient.invalidateQueries({ queryKey: ['folder-content'] });
       await queryClient.invalidateQueries({ queryKey: ['search-documents'] });
+      toast.success('Document déverrouillé avec succès');
       handleRefresh();
     } catch (err: any) {
-      alert('Erreur de déverrouillage: ' + (err.response?.data?.message || err.message));
+      toast.error(extractErrorMessage(err, 'Échec du déverrouillage du document.'));
     }
   };
 
@@ -308,14 +362,34 @@ export const ExplorerPage: React.FC = () => {
       setDeleteFolderTarget(null);
       await queryClient.invalidateQueries({ queryKey: ['all-folders-tree'] });
       await queryClient.invalidateQueries({ queryKey: ['folder-content'] });
+      toast.success('Dossier supprimé avec succès');
       handleRefresh();
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || 'Erreur inconnue';
-      alert('Erreur lors de la suppression du dossier\u00a0: ' + msg);
+      toast.error(msg || 'Échec de la suppression du dossier.');
     } finally {
       setIsDeletingFolder(false);
     }
   };
+
+  const handleFolderSelect = (folderId?: string) => {
+    setSelectedFolderId(folderId);
+    setActiveFilterType('folder');
+    setPage(0);
+    setFilters((prev) => ({ ...prev, keyword: '', page: 0 }));
+  };
+
+  const folderPath = useMemo(() => {
+    if (!folderContent?.currentFolder) return [];
+    const path: FolderItem[] = [];
+    let current: FolderItem | undefined = folderContent.currentFolder;
+    const foldersById = new Map(allFoldersData.map((f) => [f.id, f]));
+    while (current) {
+      path.unshift(current);
+      current = current.parentId ? foldersById.get(current.parentId) : undefined;
+    }
+    return path;
+  }, [folderContent?.currentFolder, allFoldersData]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-brand-bg">
@@ -331,11 +405,7 @@ export const ExplorerPage: React.FC = () => {
         <FolderTreeSidebar
           folders={allFoldersData}
           selectedFolderId={selectedFolderId}
-          onSelectFolder={(id) => {
-            setSelectedFolderId(id);
-            setPage(0); // Reset page on folder change
-            setFilters((prev) => ({ ...prev, keyword: '', page: 0 }));
-          }}
+          onSelectFolder={handleFolderSelect}
           onCreateFolderClick={() => setIsCreateFolderOpen(true)}
           activeFilterType={activeFilterType}
           onSelectFilterType={(ft) => {
@@ -351,19 +421,33 @@ export const ExplorerPage: React.FC = () => {
           {/* Breadcrumb Path & Action Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 bg-brand-surface p-3.5 border border-brand-border rounded-lg shadow-card">
             {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-xs text-brand-muted">
-              <Home className="w-4 h-4 text-brand-muted shrink-0" />
-              <ChevronRight className="w-3.5 h-3.5 text-brand-border shrink-0" />
-              <span className="font-semibold text-brand-text">Racine GED</span>
-              {folderContent?.currentFolder && (
-                <>
+            <div className="flex items-center gap-2 text-xs text-brand-muted flex-wrap">
+              <button
+                onClick={() => handleFolderSelect(undefined)}
+                className="flex items-center gap-1.5 font-semibold text-brand-text hover:text-brand-primary transition-colors cursor-pointer"
+              >
+                <Home className="w-4 h-4 text-brand-muted shrink-0" />
+                <span>Racine GED</span>
+              </button>
+
+              {folderPath.map((folder, index) => (
+                <React.Fragment key={folder.id}>
                   <ChevronRight className="w-3.5 h-3.5 text-brand-border shrink-0" />
-                  <FolderOpen className="w-4 h-4 text-brand-primary shrink-0" />
-                  <span className="font-bold text-brand-primary">
-                    {folderContent.currentFolder.name}
-                  </span>
-                </>
-              )}
+                  {index === folderPath.length - 1 ? (
+                    <span className="font-bold text-brand-primary flex items-center gap-1.5">
+                      <FolderOpen className="w-4 h-4" />
+                      {folder.name}
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleFolderSelect(folder.id)}
+                      className="font-semibold text-brand-muted hover:text-brand-primary transition-colors cursor-pointer"
+                    >
+                      {folder.name}
+                    </button>
+                  )}
+                </React.Fragment>
+              ))}
             </div>
 
             {/* Quick Actions Header Toolbar */}
@@ -600,6 +684,40 @@ export const ExplorerPage: React.FC = () => {
           setDeleteFolderTarget(null);
         }}
         onConfirm={executeFolderDeletion}
+      />
+
+      {/* Single Document Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deleteSingleDoc}
+        onClose={() => setDeleteSingleDoc(null)}
+        onConfirm={confirmDeleteSingle}
+        title="Mettre à la corbeille"
+        message={`Voulez-vous vraiment mettre le document "${deleteSingleDoc?.name}" à la corbeille ?`}
+        confirmText="Mettre à la corbeille"
+        cancelText="Annuler"
+        variant="danger"
+        isLoading={isDeletingSingle}
+      />
+
+      {/* Bulk Documents Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onConfirm={confirmBulkDelete}
+        title="Suppression en masse"
+        message={`Voulez-vous vraiment mettre ${selectedDocIds.length} document(s) sélectionné(s) à la corbeille ?`}
+        confirmText="Tout mettre à la corbeille"
+        cancelText="Annuler"
+        variant="danger"
+        isLoading={isDeletingBulk}
+      />
+      {/* Bulk Tag Input Modal */}
+      <BulkTagModal
+        isOpen={isBulkTagOpen}
+        onClose={() => setIsBulkTagOpen(false)}
+        documentIds={selectedDocIds}
+        documentCount={selectedDocIds.length}
+        onSuccess={handleBulkTagSuccess}
       />
     </div>
   );

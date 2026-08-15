@@ -23,22 +23,29 @@ public class UpdateDocumentStatusService implements UpdateDocumentStatusUseCase 
     private final DocumentRepositoryPort documentRepositoryPort;
     private final DocumentMapper documentMapper;
     private final DocumentAccessValidator documentAccessValidator;
+    private final DocumentLockGuard documentLockGuard;
 
     @Autowired
     public UpdateDocumentStatusService(DocumentRepositoryPort documentRepositoryPort,
                                        DocumentMapper documentMapper,
-                                       DocumentAccessValidator documentAccessValidator) {
+                                       DocumentAccessValidator documentAccessValidator,
+                                       DocumentLockGuard documentLockGuard) {
         this.documentRepositoryPort = documentRepositoryPort;
         this.documentMapper = documentMapper;
         this.documentAccessValidator = documentAccessValidator;
+        this.documentLockGuard = documentLockGuard;
     }
 
     public UpdateDocumentStatusService(DocumentRepositoryPort documentRepositoryPort, DocumentMapper documentMapper) {
-        this(documentRepositoryPort, documentMapper, null);
+        this(documentRepositoryPort, documentMapper, null, null);
     }
 
     @Override
     public DocumentResponseDto updateStatus(UUID documentId, String newStatus, UUID currentUserId) {
+        if (documentLockGuard != null) {
+            documentLockGuard.assertNotLockedByOther(documentId, currentUserId);
+        }
+
         Document document = documentRepositoryPort.findByIdIncludingDeleted(documentId)
                 .orElseThrow(() -> new NotFoundException(
                         ErrorCode.DOCUMENT_NOT_FOUND,

@@ -236,3 +236,9 @@ export interface TrashItemResponse {
   deletedAt: string;
   autoPurgeAt?: string;
 }
+
+export interface BulkActionResult {
+  processedCount: number;
+  skippedIds: string[];
+  skippedNames: string[];
+}
