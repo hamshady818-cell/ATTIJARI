@@ -537,12 +537,21 @@ public class DocumentController {
         return userRepositoryPort.findByKeycloakSub(currentUser.getKeycloakSub())
                 .map(User::getId)
                 .orElseGet(() -> {
+                    String sub = currentUser.getKeycloakSub() != null && !currentUser.getKeycloakSub().isBlank()
+                            ? currentUser.getKeycloakSub()
+                            : UUID.randomUUID().toString();
+                    String username = currentUser.getUsername() != null && !currentUser.getUsername().isBlank() && !"unknown".equalsIgnoreCase(currentUser.getUsername())
+                            ? currentUser.getUsername()
+                            : "user_" + sub.substring(0, Math.min(8, sub.length())).replaceAll("[^a-zA-Z0-9_]", "");
+                    String rawEmail = currentUser.getEmail();
+                    String email = (rawEmail != null && !rawEmail.isBlank()) ? rawEmail : username + "@awb.ma";
+
                     User newUser = User.builder()
                             .id(UUID.randomUUID())
-                            .keycloakSub(currentUser.getKeycloakSub())
-                            .username(currentUser.getUsername() != null ? currentUser.getUsername() : "user_" + currentUser.getKeycloakSub().substring(0, Math.min(8, currentUser.getKeycloakSub().length())))
-                            .email(currentUser.getEmail() != null ? currentUser.getEmail() : currentUser.getUsername() + "@awb.ma")
-                            .firstName(currentUser.getUsername() != null ? currentUser.getUsername() : "User")
+                            .keycloakSub(sub)
+                            .username(username)
+                            .email(email)
+                            .firstName(username)
                             .lastName("GED")
                             .active(true)
                             .createdAt(Instant.now())

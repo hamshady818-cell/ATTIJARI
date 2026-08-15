@@ -3,6 +3,7 @@ package com.awb.ged.api.notification;
 import com.awb.ged.api.exception.GlobalExceptionHandler;
 import com.awb.ged.application.dto.notification.NotificationResponseDto;
 import com.awb.ged.application.port.in.notification.GetNotificationsUseCase;
+import com.awb.ged.application.port.in.notification.MarkAllNotificationsReadUseCase;
 import com.awb.ged.application.port.in.notification.MarkNotificationReadUseCase;
 import com.awb.ged.application.port.in.security.CurrentUserProvider;
 import com.awb.ged.application.port.out.persistence.UserRepositoryPort;
@@ -56,6 +57,9 @@ class NotificationControllerTest {
 
     @MockitoBean
     private MarkNotificationReadUseCase markNotificationReadUseCase;
+
+    @MockitoBean
+    private MarkAllNotificationsReadUseCase markAllNotificationsReadUseCase;
 
     @MockitoBean
     private CurrentUserProvider currentUserProvider;

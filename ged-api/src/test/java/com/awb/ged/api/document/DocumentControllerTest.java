@@ -183,7 +183,7 @@ class DocumentControllerTest {
                 content.length
         );
 
-        given(downloadDocumentUseCase.download(eq(docId), any())).willReturn(downloadResult);
+        given(downloadDocumentUseCase.download(eq(docId), any(), any())).willReturn(downloadResult);
 
         mockMvc.perform(get("/api/v1/documents/{id}/download", docId))
                 .andExpect(status().isOk())
