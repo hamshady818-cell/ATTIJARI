@@ -27,6 +27,9 @@ import com.awb.ged.infrastructure.persistence.entity.category.CategoryJpaEntity;
 import com.awb.ged.infrastructure.persistence.entity.department.DepartmentJpaEntity;
 import com.awb.ged.infrastructure.persistence.repository.*;
 
+import com.awb.ged.infrastructure.persistence.entity.metadata.DocumentMetadataJpaEntity;
+import com.awb.ged.infrastructure.persistence.entity.metadata.MetadataDefinitionJpaEntity;
+
 @Component
 @Transactional
 public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
@@ -39,6 +42,7 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
     private final TagJpaRepository tagJpaRepository;
     private final CategoryJpaRepository categoryJpaRepository;
     private final DepartmentJpaRepository departmentJpaRepository;
+    private final MetadataDefinitionJpaRepository metadataDefinitionJpaRepository;
 
     public DocumentRepositoryAdapter(DocumentJpaRepository documentJpaRepository,
                                      DocumentVersionJpaRepository documentVersionJpaRepository,
@@ -47,7 +51,8 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
                                      UserJpaRepository userJpaRepository,
                                      TagJpaRepository tagJpaRepository,
                                      CategoryJpaRepository categoryJpaRepository,
-                                     DepartmentJpaRepository departmentJpaRepository) {
+                                     DepartmentJpaRepository departmentJpaRepository,
+                                     MetadataDefinitionJpaRepository metadataDefinitionJpaRepository) {
         this.documentJpaRepository = documentJpaRepository;
         this.documentVersionJpaRepository = documentVersionJpaRepository;
         this.documentCheckoutJpaRepository = documentCheckoutJpaRepository;
@@ -56,6 +61,7 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
         this.tagJpaRepository = tagJpaRepository;
         this.categoryJpaRepository = categoryJpaRepository;
         this.departmentJpaRepository = departmentJpaRepository;
+        this.metadataDefinitionJpaRepository = metadataDefinitionJpaRepository;
     }
 
     // --- Document CRUD ---
@@ -326,11 +332,21 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
                 .toList();
 
         List<DocumentMetadataValue> metadata = entity.getMetadata().stream()
-                .map(m -> DocumentMetadataValue.builder()
-                        .definitionId(m.getDefinition() != null ? m.getDefinition().getId() : null)
-                        .key(m.getDefinition() != null ? (m.getDefinition().getFieldName() != null ? m.getDefinition().getFieldName() : m.getDefinition().getDisplayLabel()) : null)
-                        .value(m.getValueText())
-                        .build())
+                .map(m -> {
+                    String valStr = m.getValueText();
+                    if ((valStr == null || valStr.trim().isEmpty()) && m.getValueJson() != null) {
+                        if (m.getValueJson() instanceof List<?> list) {
+                            valStr = list.stream().map(Object::toString).collect(Collectors.joining(","));
+                        } else {
+                            valStr = m.getValueJson().toString();
+                        }
+                    }
+                    return DocumentMetadataValue.builder()
+                            .definitionId(m.getDefinition() != null ? m.getDefinition().getId() : null)
+                            .key(m.getDefinition() != null ? (m.getDefinition().getFieldName() != null ? m.getDefinition().getFieldName() : m.getDefinition().getDisplayLabel()) : null)
+                            .value(valStr != null ? valStr : "")
+                            .build();
+                })
                 .toList();
 
         // Map status from JPA enum to domain enum
@@ -428,6 +444,7 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
                 .build();
 
         entity.setId(domain.getId() != null ? domain.getId() : UUID.randomUUID());
+        applyMetadataToEntity(domain, entity);
         return entity;
     }
 
@@ -490,6 +507,86 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
         // Tags
         Set<TagJpaEntity> tags = resolveTagEntities(domain);
         entity.setTags(tags);
+
+        // Dynamic Metadata
+        applyMetadataToEntity(domain, entity);
+    }
+
+    private void applyMetadataToEntity(Document domain, DocumentJpaEntity entity) {
+        if (domain.getMetadata() == null) {
+            return;
+        }
+
+        UserJpaEntity editor = entity.getUpdatedBy() != null
+                ? entity.getUpdatedBy()
+                : (entity.getOwner() != null ? entity.getOwner() : entity.getCreatedBy());
+
+        Map<UUID, DocumentMetadataJpaEntity> existingMap = new HashMap<>();
+        if (entity.getMetadata() != null) {
+            for (DocumentMetadataJpaEntity existingMeta : entity.getMetadata()) {
+                if (existingMeta.getDefinition() != null && existingMeta.getDefinition().getId() != null) {
+                    existingMap.put(existingMeta.getDefinition().getId(), existingMeta);
+                }
+            }
+        } else {
+            entity.setMetadata(new ArrayList<>());
+        }
+
+        List<DocumentMetadataJpaEntity> updatedList = new ArrayList<>();
+
+        for (DocumentMetadataValue val : domain.getMetadata()) {
+            if (val == null) continue;
+
+            MetadataDefinitionJpaEntity def = null;
+            if (val.getDefinitionId() != null) {
+                def = metadataDefinitionJpaRepository.findById(val.getDefinitionId()).orElse(null);
+            }
+            if (def == null && val.getKey() != null && !val.getKey().trim().isEmpty()) {
+                def = metadataDefinitionJpaRepository.findByFieldNameAndDeletedAtIsNull(val.getKey().trim()).orElse(null);
+            }
+
+            if (def == null) continue;
+
+            String valStr = val.getValue() != null ? val.getValue() : "";
+
+            Object valJson = null;
+            if (def.getFieldType() == MetadataDefinitionJpaEntity.FieldType.MULTI_SELECT ||
+                valStr.startsWith("[") || valStr.contains(",")) {
+                if (valStr.startsWith("[") && valStr.endsWith("]")) {
+                    valJson = valStr;
+                } else if (!valStr.isEmpty()) {
+                    List<String> items = Arrays.stream(valStr.split(","))
+                            .map(String::trim)
+                            .filter(s -> !s.isEmpty())
+                            .toList();
+                    valJson = items;
+                }
+            }
+
+            DocumentMetadataJpaEntity metaEntity = existingMap.get(def.getId());
+            if (metaEntity != null) {
+                metaEntity.setValueText(valStr);
+                metaEntity.setValueJson(valJson);
+                if (editor != null) metaEntity.setUpdatedBy(editor);
+            } else {
+                metaEntity = DocumentMetadataJpaEntity.builder()
+                        .document(entity)
+                        .definition(def)
+                        .valueText(valStr)
+                        .valueJson(valJson)
+                        .updatedBy(editor)
+                        .build();
+                metaEntity.setId(UUID.randomUUID());
+            }
+            updatedList.add(metaEntity);
+        }
+
+        entity.getMetadata().removeIf(existing -> !updatedList.contains(existing));
+        for (DocumentMetadataJpaEntity newMeta : updatedList) {
+            if (!entity.getMetadata().contains(newMeta)) {
+                entity.getMetadata().add(newMeta);
+            }
+        }
     }
 
     // --- Helper resolvers (avoid code duplication) ---

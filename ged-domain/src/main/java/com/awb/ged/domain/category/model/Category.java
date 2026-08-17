@@ -51,7 +51,30 @@ public class Category {
      * </ul>
      * </p>
      */
+    /** Optional description of the category's purpose */
+    private String description;
+
+    /** Hex color code for UI display (e.g., "#C8102E") */
+    private String color;
+
+    /** Icon identifier string for UI rendering */
+    private String icon;
+
+    /** Security classification key used to enforce document type access control */
     private String securityClass;
+
+    /** Whether this category is active. Defaults to true */
+    @Builder.Default
+    private boolean active = true;
+
+    /** UTC timestamp of soft delete, null if active */
+    private Instant deletedAt;
+
+    /** ID of user who soft-deleted this category */
+    private UUID deletedBy;
+
+    /** Number of metadata definitions associated with this category */
+    private Integer metadataCount;
 
     /** UTC timestamp when the category was created */
     private Instant createdAt;

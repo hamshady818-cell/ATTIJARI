@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -20,6 +21,14 @@ public class MetadataDefinitionResponseDto {
     private MetadataType type;
     private boolean required;
     private String validationPattern;
+    private List<String> options;
+    private String description;
+    private String defaultValue;
+    private Integer displayOrder;
+    private boolean active;
+    private UUID categoryId;
     private Instant createdAt;
     private Instant updatedAt;
+    private Instant deletedAt;
+    private UUID deletedBy;
 }

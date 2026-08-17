@@ -103,6 +103,23 @@ public class CategoryJpaEntity extends BaseEntity {
     @Column(name = "security_class", length = 50)
     private String securityClass;
 
+    /**
+     * Whether this category is active. Inactive categories are hidden from forms.
+     */
+    @Column(name = "is_active", nullable = false)
+    @Builder.Default
+    private boolean active = true;
+
+    @Column(name = "deleted_at")
+    private java.time.Instant deletedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "deleted_by",
+            foreignKey = @ForeignKey(name = "fk_categories_deleted_by")
+    )
+    private UserJpaEntity deletedBy;
+
     // ─────────────────────────────────────────────────────────────────────────
     //  Self-referential hierarchy
     // ─────────────────────────────────────────────────────────────────────────

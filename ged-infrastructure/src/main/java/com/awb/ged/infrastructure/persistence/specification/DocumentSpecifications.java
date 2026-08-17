@@ -65,11 +65,9 @@ public final class DocumentSpecifications {
                 criteriaQuery.distinct(true);
             }
 
-            // Category filter (join document_categories table)
+            // Category filter
             if (query.getCategoryId() != null) {
-                var categoryJoin = root.join("categories");
-                predicates.add(cb.equal(categoryJoin.get("id"), query.getCategoryId()));
-                criteriaQuery.distinct(true);
+                predicates.add(cb.equal(root.get("category").get("id"), query.getCategoryId()));
             }
 
             // Date range filters

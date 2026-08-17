@@ -36,6 +36,9 @@ import {
   ChevronRight,
   Home,
   Trash2,
+  Files,
+  FileClock,
+  HardDrive,
 } from 'lucide-react';
 
 export const ExplorerPage: React.FC = () => {
@@ -423,12 +426,45 @@ export const ExplorerPage: React.FC = () => {
             {/* Breadcrumb */}
             <div className="flex items-center gap-2 text-xs text-brand-muted flex-wrap">
               <button
-                onClick={() => handleFolderSelect(undefined)}
+                onClick={() => {
+                  setActiveFilterType('folder');
+                  handleFolderSelect(undefined);
+                }}
                 className="flex items-center gap-1.5 font-semibold text-brand-text hover:text-brand-primary transition-colors cursor-pointer"
               >
                 <Home className="w-4 h-4 text-brand-muted shrink-0" />
                 <span>Racine GED</span>
               </button>
+
+              {activeFilterType === 'all' && (
+                <>
+                  <ChevronRight className="w-3.5 h-3.5 text-brand-border shrink-0" />
+                  <span className="font-bold text-brand-primary flex items-center gap-1.5">
+                    <Files className="w-4 h-4" />
+                    Tous les documents
+                  </span>
+                </>
+              )}
+
+              {activeFilterType === 'drafts' && (
+                <>
+                  <ChevronRight className="w-3.5 h-3.5 text-brand-border shrink-0" />
+                  <span className="font-bold text-brand-primary flex items-center gap-1.5">
+                    <FileClock className="w-4 h-4" />
+                    Mes Brouillons
+                  </span>
+                </>
+              )}
+
+              {activeFilterType === 'folder' && !selectedFolderId && (
+                <>
+                  <ChevronRight className="w-3.5 h-3.5 text-brand-border shrink-0" />
+                  <span className="font-bold text-brand-primary flex items-center gap-1.5">
+                    <HardDrive className="w-4 h-4" />
+                    Racine (sans dossier)
+                  </span>
+                </>
+              )}
 
               {folderPath.map((folder, index) => (
                 <React.Fragment key={folder.id}>

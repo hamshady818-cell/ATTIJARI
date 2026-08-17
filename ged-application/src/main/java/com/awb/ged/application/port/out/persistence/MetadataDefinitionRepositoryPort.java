@@ -1,8 +1,8 @@
 package com.awb.ged.application.port.out.persistence;
 
+import com.awb.ged.common.model.PageResponse;
 import com.awb.ged.domain.metadata.model.MetadataDefinition;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,7 +24,7 @@ public interface MetadataDefinitionRepositoryPort {
     MetadataDefinition save(MetadataDefinition definition);
 
     /**
-     * Resolves a metadata definition by ID.
+     * Resolves an active metadata definition by ID.
      *
      * @param id the definition UUID
      * @return an {@link Optional} containing the definition, or empty
@@ -32,7 +32,7 @@ public interface MetadataDefinitionRepositoryPort {
     Optional<MetadataDefinition> findById(UUID id);
 
     /**
-     * Resolves a metadata definition by its unique key/name.
+     * Resolves an active metadata definition by its unique key/name.
      *
      * @param name the unique code name (e.g. "invoice_amount")
      * @return an {@link Optional} containing the definition, or empty
@@ -40,16 +40,36 @@ public interface MetadataDefinitionRepositoryPort {
     Optional<MetadataDefinition> findByName(String name);
 
     /**
-     * Lists all metadata definitions.
+     * Lists active metadata definitions with pagination.
      *
-     * @return list of all definitions
+     * @param page page number (0-indexed)
+     * @param size page size
+     * @return paginated response of active metadata definitions
      */
-    List<MetadataDefinition> findAll();
+    PageResponse<MetadataDefinition> findAllActive(int page, int size);
 
     /**
-     * Deletes a metadata definition.
+     * Lists soft-deleted metadata definitions with pagination.
+     *
+     * @param page page number (0-indexed)
+     * @param size page size
+     * @return paginated response of deleted metadata definitions
+     */
+    PageResponse<MetadataDefinition> findAllDeleted(int page, int size);
+
+    /**
+     * Marks a metadata definition as soft-deleted.
      *
      * @param id the definition UUID
+     * @param deletedByUserId the ID of the user performing the deletion
      */
-    void delete(UUID id);
+    void softDelete(UUID id, UUID deletedByUserId);
+
+    /**
+     * Restores a previously soft-deleted metadata definition.
+     *
+     * @param id the definition UUID
+     * @return the restored definition
+     */
+    MetadataDefinition restore(UUID id);
 }

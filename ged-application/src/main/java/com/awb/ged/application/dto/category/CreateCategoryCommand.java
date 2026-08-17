@@ -13,7 +13,11 @@ import java.util.UUID;
 @AllArgsConstructor
 public class CreateCategoryCommand {
     private String name;
+    private String description;
     private UUID parentId;
+    private String color;
+    private String icon;
+    private Boolean active;
 
     /**
      * Security classification key (e.g., "FINANCE") — must match the suffix of a Keycloak

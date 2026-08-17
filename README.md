@@ -187,7 +187,7 @@ Les configurations principales du backend se trouvent dans [`ged-boot/src/main/r
 ```yaml
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/ged_db
+    url: jdbc:postgresql://localhost:5433/ged_db
     username: ged_app_user
     password: ${DB_PASSWORD}
   ai:

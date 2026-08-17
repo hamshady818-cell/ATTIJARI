@@ -22,20 +22,26 @@ public class CategoryController {
     private final CreateCategoryUseCase createCategoryUseCase;
     private final GetCategoryUseCase getCategoryUseCase;
     private final ListCategoriesUseCase listCategoriesUseCase;
+    private final ListDeletedCategoriesUseCase listDeletedCategoriesUseCase;
     private final UpdateCategoryUseCase updateCategoryUseCase;
     private final DeleteCategoryUseCase deleteCategoryUseCase;
+    private final RestoreCategoryUseCase restoreCategoryUseCase;
 
     @Autowired
     public CategoryController(CreateCategoryUseCase createCategoryUseCase,
-                              GetCategoryUseCase getCategoryUseCase,
-                              ListCategoriesUseCase listCategoriesUseCase,
-                              UpdateCategoryUseCase updateCategoryUseCase,
-                              DeleteCategoryUseCase deleteCategoryUseCase) {
+                               GetCategoryUseCase getCategoryUseCase,
+                               ListCategoriesUseCase listCategoriesUseCase,
+                               ListDeletedCategoriesUseCase listDeletedCategoriesUseCase,
+                               UpdateCategoryUseCase updateCategoryUseCase,
+                               DeleteCategoryUseCase deleteCategoryUseCase,
+                               RestoreCategoryUseCase restoreCategoryUseCase) {
         this.createCategoryUseCase = createCategoryUseCase;
         this.getCategoryUseCase = getCategoryUseCase;
         this.listCategoriesUseCase = listCategoriesUseCase;
+        this.listDeletedCategoriesUseCase = listDeletedCategoriesUseCase;
         this.updateCategoryUseCase = updateCategoryUseCase;
         this.deleteCategoryUseCase = deleteCategoryUseCase;
+        this.restoreCategoryUseCase = restoreCategoryUseCase;
     }
 
     @PostMapping
@@ -43,11 +49,23 @@ public class CategoryController {
     public ResponseEntity<CategoryResponseDto> createCategory(@Valid @RequestBody CategoryRequest request) {
         CreateCategoryCommand command = CreateCategoryCommand.builder()
                 .name(request.getName())
+                .description(request.getDescription())
                 .parentId(request.getParentId())
+                .color(request.getColor())
+                .icon(request.getIcon())
+                .securityClass(request.getSecurityClass())
+                .active(request.getActive())
                 .build();
         CategoryResponseDto created = createCategoryUseCase.createCategory(command);
         URI location = URI.create("/api/v1/categories/" + created.getId());
         return ResponseEntity.created(location).body(created);
+    }
+
+    @GetMapping("/deleted")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ResponseEntity<List<CategoryResponseDto>> listDeletedCategories() {
+        List<CategoryResponseDto> list = listDeletedCategoriesUseCase.listDeletedCategories();
+        return ResponseEntity.ok(list);
     }
 
     @GetMapping("/{id}")
@@ -69,11 +87,30 @@ public class CategoryController {
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     public ResponseEntity<CategoryResponseDto> updateCategory(
             @PathVariable("id") UUID id,
-            @Valid @RequestBody CategoryRequest request) {
+            @RequestBody CategoryRequest request) {
         UpdateCategoryCommand command = UpdateCategoryCommand.builder()
                 .id(id)
                 .name(request.getName())
+                .description(request.getDescription())
                 .parentId(request.getParentId())
+                .color(request.getColor())
+                .icon(request.getIcon())
+                .securityClass(request.getSecurityClass())
+                .active(request.getActive())
+                .build();
+        CategoryResponseDto updated = updateCategoryUseCase.updateCategory(command);
+        return ResponseEntity.ok(updated);
+    }
+
+    @PatchMapping("/{id}/active")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ResponseEntity<CategoryResponseDto> toggleActive(
+            @PathVariable("id") UUID id,
+            @RequestBody CategoryRequest request) {
+        boolean active = request.getActive() != null ? request.getActive() : true;
+        UpdateCategoryCommand command = UpdateCategoryCommand.builder()
+                .id(id)
+                .active(active)
                 .build();
         CategoryResponseDto updated = updateCategoryUseCase.updateCategory(command);
         return ResponseEntity.ok(updated);
@@ -84,5 +121,12 @@ public class CategoryController {
     public ResponseEntity<Void> deleteCategory(@PathVariable("id") UUID id) {
         deleteCategoryUseCase.deleteCategory(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ResponseEntity<CategoryResponseDto> restoreCategory(@PathVariable("id") UUID id) {
+        CategoryResponseDto restored = restoreCategoryUseCase.restoreCategory(id);
+        return ResponseEntity.ok(restored);
     }
 }

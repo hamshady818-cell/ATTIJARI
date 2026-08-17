@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
-import { CategoryItem, FolderItem } from '../../types';
+import { CategoryItem, FolderItem, DocumentMetadataValue } from '../../types';
 import { Upload, File, X } from 'lucide-react';
 import { documentApi } from '../../api/documentApi';
 import { toast } from 'react-hot-toast';
 import { extractErrorMessage } from '../../utils/errorMessages';
+import { MetadataFieldsForm } from './MetadataFieldsForm';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -28,12 +29,16 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const [files, setFiles] = useState<File[]>([]);
   const [targetFolderId, setTargetFolderId] = useState(defaultFolderId || '');
   const [categoryId, setCategoryId] = useState('');
+  const [metadataValues, setMetadataValues] = useState<DocumentMetadataValue[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
   React.useEffect(() => {
     if (isOpen) {
       setTargetFolderId(defaultFolderId || '');
+    } else {
+      setFiles([]);
+      setMetadataValues([]);
     }
   }, [isOpen, defaultFolderId]);
 
@@ -78,6 +83,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({
         formData.append('name', file.name);
         if (targetFolderId) formData.append('folderId', targetFolderId);
         if (categoryId) formData.append('categoryId', categoryId);
+        if (metadataValues.length > 0) {
+          formData.append('metadata', JSON.stringify(metadataValues));
+        }
 
         await documentApi.upload(formData);
       } else {
@@ -96,6 +104,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
           : 'Document envoyé avec succès'
       );
       setFiles([]);
+      setMetadataValues([]);
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -224,6 +233,17 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             </div>
           </div>
         )}
+
+        {/* Dynamic Metadata Fields */}
+        {files.length === 1 ? (
+          <MetadataFieldsForm categoryId={categoryId} values={metadataValues} onChange={setMetadataValues} />
+        ) : files.length > 1 ? (
+          <p className="text-[11px] text-brand-muted italic px-1">
+            Les métadonnées spécifiques ne peuvent être renseignées que lors de
+            l'envoi d'un seul document à la fois. Vous pourrez les ajouter après
+            l'envoi, depuis la fiche de chaque document.
+          </p>
+        ) : null}
 
         {/* Footer Actions */}
         <div className="flex justify-end gap-2 pt-3 border-t border-brand-border">

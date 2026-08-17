@@ -6,8 +6,8 @@ spring:
 
   datasource:
     url: jdbc:postgresql://localhost:5432/ged_db
-    username: ged_app_user
-    password: ${DB_PASSWORD}
+    username: postgres
+    password: ${DB_PASSWORD:Chado@2001}
 
   jpa:
     hibernate:

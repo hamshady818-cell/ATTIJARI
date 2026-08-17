@@ -14,8 +14,17 @@ import java.util.UUID;
 @AllArgsConstructor
 public class CategoryRequest {
 
-    @NotBlank(message = "Category name is required")
     private String name;
 
+    private String description;
+
     private UUID parentId;
+
+    private String color;
+
+    private String icon;
+
+    private String securityClass;
+
+    private Boolean active;
 }

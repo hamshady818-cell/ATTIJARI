@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FolderTree, LayoutDashboard, Trash2, Search, ShieldCheck, ChevronDown, LogOut, User } from 'lucide-react';
+import { FolderTree, LayoutDashboard, Trash2, Sliders, Layers, Search, ShieldCheck, ChevronDown, LogOut, User } from 'lucide-react';
 import { NotificationPanel } from './NotificationPanel';
 import { AttijariLogo } from '../ui/AttijariLogo';
 import { useAuth } from '../../context/AuthContext';
@@ -98,6 +98,34 @@ export const Header: React.FC<HeaderProps> = ({ onSearchChange, searchValue = ''
             >
               <Trash2 className="w-4 h-4" />
               <span>Corbeille</span>
+            </NavLink>
+
+            <NavLink
+              to="/metadata-definitions"
+              className={({ isActive }) =>
+                `flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all duration-150 ${
+                  isActive
+                    ? 'bg-brand-primary text-white shadow-xs'
+                    : 'text-brand-text hover:bg-brand-alt'
+                }`
+              }
+            >
+              <Sliders className="w-4 h-4" />
+              <span>Métadonnées</span>
+            </NavLink>
+
+            <NavLink
+              to="/categories"
+              className={({ isActive }) =>
+                `flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-md transition-all duration-150 ${
+                  isActive
+                    ? 'bg-brand-primary text-white shadow-xs'
+                    : 'text-brand-text hover:bg-brand-alt'
+                }`
+              }
+            >
+              <Layers className="w-4 h-4" />
+              <span>Catégories</span>
             </NavLink>
           </nav>
         </div>

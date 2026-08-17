@@ -55,7 +55,7 @@ public abstract class BaseEntity implements Serializable, Persistable<UUID> {
 
     @PostLoad
     @PostPersist
-    protected void markNotNew() {
+    public void markNotNew() {
         this.isNew = false;
     }
 }

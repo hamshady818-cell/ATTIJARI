@@ -28,6 +28,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
 
+import com.awb.ged.application.port.out.persistence.MetadataDefinitionRepositoryPort;
+import com.awb.ged.common.model.PageResponse;
+import com.awb.ged.domain.metadata.model.MetadataDefinition;
+import com.awb.ged.domain.metadata.model.MetadataType;
+
 @Service
 @Transactional
 public class UpdateDocumentService implements UpdateDocumentUseCase {
@@ -40,6 +45,8 @@ public class UpdateDocumentService implements UpdateDocumentUseCase {
     private final AuditLogPort auditLogPort;
     private final DocumentMapper documentMapper;
     private final DocumentAccessValidator documentAccessValidator;
+    private final DocumentLockGuard documentLockGuard;
+    private final MetadataDefinitionRepositoryPort metadataDefinitionRepositoryPort;
 
     @Autowired
     public UpdateDocumentService(DocumentRepositoryPort documentRepositoryPort,
@@ -49,7 +56,9 @@ public class UpdateDocumentService implements UpdateDocumentUseCase {
                                  UserRepositoryPort userRepositoryPort,
                                  AuditLogPort auditLogPort,
                                  DocumentMapper documentMapper,
-                                 DocumentAccessValidator documentAccessValidator) {
+                                 DocumentAccessValidator documentAccessValidator,
+                                 DocumentLockGuard documentLockGuard,
+                                 MetadataDefinitionRepositoryPort metadataDefinitionRepositoryPort) {
         this.documentRepositoryPort = documentRepositoryPort;
         this.folderRepositoryPort = folderRepositoryPort;
         this.categoryRepositoryPort = categoryRepositoryPort;
@@ -58,6 +67,20 @@ public class UpdateDocumentService implements UpdateDocumentUseCase {
         this.auditLogPort = auditLogPort;
         this.documentMapper = documentMapper;
         this.documentAccessValidator = documentAccessValidator;
+        this.documentLockGuard = documentLockGuard;
+        this.metadataDefinitionRepositoryPort = metadataDefinitionRepositoryPort;
+    }
+
+    public UpdateDocumentService(DocumentRepositoryPort documentRepositoryPort,
+                                 FolderRepositoryPort folderRepositoryPort,
+                                 CategoryRepositoryPort categoryRepositoryPort,
+                                 DepartmentRepositoryPort departmentRepositoryPort,
+                                 UserRepositoryPort userRepositoryPort,
+                                 AuditLogPort auditLogPort,
+                                 DocumentMapper documentMapper,
+                                 DocumentAccessValidator documentAccessValidator,
+                                 DocumentLockGuard documentLockGuard) {
+        this(documentRepositoryPort, folderRepositoryPort, categoryRepositoryPort, departmentRepositoryPort, userRepositoryPort, auditLogPort, documentMapper, documentAccessValidator, documentLockGuard, null);
     }
 
     public UpdateDocumentService(DocumentRepositoryPort documentRepositoryPort,
@@ -67,7 +90,7 @@ public class UpdateDocumentService implements UpdateDocumentUseCase {
                                  UserRepositoryPort userRepositoryPort,
                                  AuditLogPort auditLogPort,
                                  DocumentMapper documentMapper) {
-        this(documentRepositoryPort, folderRepositoryPort, categoryRepositoryPort, departmentRepositoryPort, userRepositoryPort, auditLogPort, documentMapper, null);
+        this(documentRepositoryPort, folderRepositoryPort, categoryRepositoryPort, departmentRepositoryPort, userRepositoryPort, auditLogPort, documentMapper, null, null, null);
     }
 
     @Override
@@ -84,11 +107,8 @@ public class UpdateDocumentService implements UpdateDocumentUseCase {
         }
 
         // 2. Validate not locked by another user
-        if (document.isCurrentlyLocked(Instant.now())) {
-            throw new BusinessException(
-                    ErrorCode.DOCUMENT_LOCKED,
-                    "Cannot update properties of a locked document."
-            );
+        if (documentLockGuard != null) {
+            documentLockGuard.assertNotLockedByOther(documentId, currentUserId);
         }
 
         Map<String, Object> auditChanges = new HashMap<>();
@@ -229,9 +249,10 @@ public class UpdateDocumentService implements UpdateDocumentUseCase {
         // 11. Dynamic Metadata
         List<DocumentMetadataValue> targetMetadata = document.getMetadata();
         if (command.getMetadata() != null) {
+            validateRequiredMetadata(command.getMetadata());
             List<DocumentMetadataValue> newMetadataList = new ArrayList<>();
             for (DocumentMetadataValueDto dto : command.getMetadata()) {
-                if (dto.getDefinitionId() != null) {
+                if (dto.getDefinitionId() != null || (dto.getKey() != null && !dto.getKey().trim().isEmpty())) {
                     newMetadataList.add(DocumentMetadataValue.builder()
                             .definitionId(dto.getDefinitionId())
                             .key(dto.getKey())
@@ -293,5 +314,62 @@ public class UpdateDocumentService implements UpdateDocumentUseCase {
         }
 
         return response;
+    }
+
+    private void validateRequiredMetadata(List<DocumentMetadataValueDto> metadataDtos) {
+        if (metadataDefinitionRepositoryPort == null) {
+            return;
+        }
+        PageResponse<MetadataDefinition> activeDefsPage = metadataDefinitionRepositoryPort.findAllActive(0, 1000);
+        List<MetadataDefinition> activeDefs = (activeDefsPage != null && activeDefsPage.getContent() != null)
+                ? activeDefsPage.getContent()
+                : Collections.emptyList();
+
+        if (activeDefs.isEmpty()) {
+            return;
+        }
+
+        Map<UUID, DocumentMetadataValueDto> dtosByDefId = new HashMap<>();
+        Map<String, DocumentMetadataValueDto> dtosByKey = new HashMap<>();
+        if (metadataDtos != null) {
+            for (DocumentMetadataValueDto dto : metadataDtos) {
+                if (dto.getDefinitionId() != null) {
+                    dtosByDefId.put(dto.getDefinitionId(), dto);
+                }
+                if (dto.getKey() != null && !dto.getKey().trim().isEmpty()) {
+                    dtosByKey.put(dto.getKey().trim().toLowerCase(), dto);
+                }
+            }
+        }
+
+        for (MetadataDefinition def : activeDefs) {
+            if (def.isActive() && def.isRequired()) {
+                DocumentMetadataValueDto dto = dtosByDefId.get(def.getId());
+                if (dto == null && def.getName() != null) {
+                    dto = dtosByKey.get(def.getName().trim().toLowerCase());
+                }
+
+                if (dto == null || isValueEmpty(def.getType(), dto.getValue())) {
+                    throw new InvalidRequestException(
+                            ErrorCode.INVALID_INPUT,
+                            "La métadonnée '" + def.getLabel() + "' est obligatoire."
+                    );
+                }
+            }
+        }
+    }
+
+    private boolean isValueEmpty(MetadataType type, String value) {
+        if (value == null) {
+            return true;
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty() || "null".equalsIgnoreCase(trimmed) || "undefined".equalsIgnoreCase(trimmed)) {
+            return true;
+        }
+        if (type == MetadataType.BOOLEAN) {
+            return !("true".equalsIgnoreCase(trimmed) || "false".equalsIgnoreCase(trimmed));
+        }
+        return false;
     }
 }

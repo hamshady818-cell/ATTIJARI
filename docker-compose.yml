@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: ged_app_user
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - ged-postgres-data:/var/lib/postgresql/data
 

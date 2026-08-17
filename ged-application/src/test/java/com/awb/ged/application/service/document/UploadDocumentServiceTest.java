@@ -1,5 +1,6 @@
 package com.awb.ged.application.service.document;
 
+import com.awb.ged.application.dto.document.DocumentMetadataValueDto;
 import com.awb.ged.application.dto.document.DocumentResponseDto;
 import com.awb.ged.application.dto.document.UploadDocumentCommand;
 import com.awb.ged.application.mapper.DocumentMapper;
@@ -13,13 +14,13 @@ import com.awb.ged.domain.document.model.Document;
 import com.awb.ged.domain.document.model.DocumentLock;
 import com.awb.ged.domain.document.model.DocumentVersion;
 import com.awb.ged.domain.document.model.FileReferenceId;
-import com.awb.ged.domain.folder.model.Folder;
 import com.awb.ged.domain.user.model.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mapstruct.factory.Mappers;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -94,6 +95,96 @@ class UploadDocumentServiceTest {
         assertThat(result.getOwnerId()).isEqualTo(ownerId);
         verify(documentRepositoryPort, times(2)).save(any(Document.class));
         verify(documentRepositoryPort).saveVersion(any(DocumentVersion.class));
+    }
+
+    @Test
+    @DisplayName("Should attach metadata values to the uploaded document")
+    void uploadDocument_WithMetadata_AttachesMetadataValues() {
+        // Given
+        UUID ownerId = UUID.randomUUID();
+        UUID defId1 = UUID.randomUUID();
+        UUID defId2 = UUID.randomUUID();
+
+        DocumentMetadataValueDto meta1 = DocumentMetadataValueDto.builder()
+                .definitionId(defId1)
+                .key("invoice_num")
+                .value("INV-001")
+                .build();
+        DocumentMetadataValueDto meta2 = DocumentMetadataValueDto.builder()
+                .definitionId(defId2)
+                .key("amount")
+                .value("1500.50")
+                .build();
+
+        UploadDocumentCommand command = UploadDocumentCommand.builder()
+                .name("Invoice.pdf")
+                .ownerId(ownerId)
+                .mimeType("application/pdf")
+                .fileContent("Invoice data".getBytes())
+                .metadata(List.of(meta1, meta2))
+                .build();
+
+        given(documentRepositoryPort.findByFolderId(null)).willReturn(List.of());
+        given(userRepositoryPort.findById(ownerId)).willReturn(Optional.of(User.builder().id(ownerId).build()));
+        given(storagePort.store(anyString(), any(byte[].class), anyString()))
+                .willReturn(new FileReferenceId("storage/ref/inv"));
+        given(documentRepositoryPort.save(any(Document.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        uploadDocumentService.uploadDocument(command);
+
+        // Then
+        ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
+        verify(documentRepositoryPort, times(2)).save(docCaptor.capture());
+
+        Document savedDoc = docCaptor.getAllValues().get(1);
+        assertThat(savedDoc.getMetadata()).hasSize(2);
+        assertThat(savedDoc.getMetadata()).extracting("key").containsExactly("invoice_num", "amount");
+        assertThat(savedDoc.getMetadata()).extracting("value").containsExactly("INV-001", "1500.50");
+    }
+
+    @Test
+    @DisplayName("Should ignore metadata entries without a definitionId")
+    void uploadDocument_WithNullDefinitionId_FiltersOutInvalidMetadata() {
+        // Given
+        UUID ownerId = UUID.randomUUID();
+        UUID defId1 = UUID.randomUUID();
+
+        DocumentMetadataValueDto validMeta = DocumentMetadataValueDto.builder()
+                .definitionId(defId1)
+                .key("invoice_num")
+                .value("INV-002")
+                .build();
+        DocumentMetadataValueDto invalidMeta = DocumentMetadataValueDto.builder()
+                .definitionId(null)
+                .key("invalid_key")
+                .value("some_val")
+                .build();
+
+        UploadDocumentCommand command = UploadDocumentCommand.builder()
+                .name("Receipt.pdf")
+                .ownerId(ownerId)
+                .mimeType("application/pdf")
+                .fileContent("Receipt data".getBytes())
+                .metadata(List.of(validMeta, invalidMeta))
+                .build();
+
+        given(documentRepositoryPort.findByFolderId(null)).willReturn(List.of());
+        given(userRepositoryPort.findById(ownerId)).willReturn(Optional.of(User.builder().id(ownerId).build()));
+        given(storagePort.store(anyString(), any(byte[].class), anyString()))
+                .willReturn(new FileReferenceId("storage/ref/rcp"));
+        given(documentRepositoryPort.save(any(Document.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        uploadDocumentService.uploadDocument(command);
+
+        // Then
+        ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
+        verify(documentRepositoryPort, times(2)).save(docCaptor.capture());
+
+        Document savedDoc = docCaptor.getAllValues().get(1);
+        assertThat(savedDoc.getMetadata()).hasSize(1);
+        assertThat(savedDoc.getMetadata().get(0).getKey()).isEqualTo("invoice_num");
     }
 
     @Test

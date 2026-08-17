@@ -11,4 +11,12 @@ import java.util.UUID;
 public interface CategoryJpaRepository extends JpaRepository<CategoryJpaEntity, UUID> {
 
     List<CategoryJpaEntity> findByParentCategoryId(UUID parentId);
+
+    List<CategoryJpaEntity> findByParentCategoryIdAndDeletedAtIsNull(UUID parentId);
+
+    List<CategoryJpaEntity> findAllByDeletedAtIsNull();
+
+    List<CategoryJpaEntity> findAllByDeletedAtIsNotNull();
+
+    java.util.Optional<CategoryJpaEntity> findByNameIgnoreCaseAndDeletedAtIsNull(String name);
 }

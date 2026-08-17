@@ -56,10 +56,40 @@ public class CategoryRepositoryAdapter implements CategoryRepositoryPort {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Category> findAllActive() {
+        return categoryJpaRepository.findAllByDeletedAtIsNull().stream()
+                .map(this::mapToDomain)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<Category> findByParentId(UUID parentId) {
         return categoryJpaRepository.findByParentCategoryId(parentId).stream()
                 .map(this::mapToDomain)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Category> findActiveByParentId(UUID parentId) {
+        return categoryJpaRepository.findByParentCategoryIdAndDeletedAtIsNull(parentId).stream()
+                .map(this::mapToDomain)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Category> findAllDeleted() {
+        return categoryJpaRepository.findAllByDeletedAtIsNotNull().stream()
+                .map(this::mapToDomain)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Category> findByName(String name) {
+        return categoryJpaRepository.findByNameIgnoreCaseAndDeletedAtIsNull(name).map(this::mapToDomain);
     }
 
     @Override
@@ -72,9 +102,15 @@ public class CategoryRepositoryAdapter implements CategoryRepositoryPort {
         return Category.builder()
                 .id(entity.getId())
                 .name(entity.getName())
+                .description(entity.getDescription())
                 .parentId(entity.getParentCategory() != null ? entity.getParentCategory().getId() : null)
                 .path(entity.getPath())
+                .color(entity.getColor())
+                .icon(entity.getIcon())
                 .securityClass(entity.getSecurityClass())
+                .active(entity.isActive())
+                .deletedAt(entity.getDeletedAt())
+                .deletedBy(entity.getDeletedBy() != null ? entity.getDeletedBy().getId() : null)
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
@@ -88,11 +124,22 @@ public class CategoryRepositoryAdapter implements CategoryRepositoryPort {
             parent = categoryJpaRepository.findById(domain.getParentId()).orElse(null);
         }
 
+        UserJpaEntity deletedByUser = null;
+        if (domain.getDeletedBy() != null) {
+            deletedByUser = userJpaRepository.findById(domain.getDeletedBy()).orElse(null);
+        }
+
         CategoryJpaEntity entity = CategoryJpaEntity.builder()
                 .name(domain.getName())
+                .description(domain.getDescription())
                 .path(domain.getPath() != null ? domain.getPath() : "")
+                .color(domain.getColor())
+                .icon(domain.getIcon())
                 .parentCategory(parent)
                 .securityClass(domain.getSecurityClass())
+                .active(domain.isActive())
+                .deletedAt(domain.getDeletedAt())
+                .deletedBy(deletedByUser)
                 .build();
 
         if (domain.getId() != null) {

@@ -55,6 +55,12 @@ class CategoryControllerTest {
     @MockitoBean
     private DeleteCategoryUseCase deleteCategoryUseCase;
 
+    @MockitoBean
+    private ListDeletedCategoriesUseCase listDeletedCategoriesUseCase;
+
+    @MockitoBean
+    private RestoreCategoryUseCase restoreCategoryUseCase;
+
     @Test
     @WithMockUser(roles = "ADMIN")
     @DisplayName("POST /api/v1/categories - Success with ADMIN role")

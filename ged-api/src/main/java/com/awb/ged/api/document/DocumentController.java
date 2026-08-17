@@ -11,6 +11,7 @@ import com.awb.ged.common.exception.ErrorCode;
 import com.awb.ged.common.exception.InvalidRequestException;
 import com.awb.ged.common.security.CurrentUser;
 import com.awb.ged.domain.user.model.User;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -170,7 +171,8 @@ public class DocumentController {
             @RequestParam("file") MultipartFile file,
             @RequestParam("name") String name,
             @RequestParam(value = "folderId", required = false) UUID folderId,
-            @RequestParam(value = "categoryId", required = false) UUID categoryId) {
+            @RequestParam(value = "categoryId", required = false) UUID categoryId,
+            @RequestParam(value = "metadata", required = false) String metadataJson) {
 
         validateFile(file);
 
@@ -181,6 +183,19 @@ public class DocumentController {
         UUID ownerId = resolveCurrentUserId();
         byte[] fileBytes = extractBytes(file);
 
+        List<DocumentMetadataValueDto> metadataList = new ArrayList<>();
+        if (metadataJson != null && !metadataJson.trim().isEmpty()) {
+            try {
+                ObjectMapper objectMapper = new ObjectMapper();
+                metadataList = objectMapper.readValue(
+                        metadataJson,
+                        objectMapper.getTypeFactory().constructCollectionType(List.class, DocumentMetadataValueDto.class)
+                );
+            } catch (Exception e) {
+                throw new InvalidRequestException(ErrorCode.INVALID_INPUT, "Invalid metadata JSON format: " + e.getMessage());
+            }
+        }
+
         UploadDocumentCommand command = UploadDocumentCommand.builder()
                 .name(name.trim())
                 .folderId(folderId)
@@ -188,6 +203,7 @@ public class DocumentController {
                 .ownerId(ownerId)
                 .mimeType(file.getContentType())
                 .fileContent(fileBytes)
+                .metadata(metadataList)
                 .build();
 
         DocumentResponseDto created = uploadDocumentUseCase.uploadDocument(command);

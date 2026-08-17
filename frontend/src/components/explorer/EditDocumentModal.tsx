@@ -5,6 +5,7 @@ import { documentApi } from '../../api/documentApi';
 import { Button } from '../ui/Button';
 import { X, Save, Plus, Trash2, AlertCircle, CheckCircle2, Tag, Calendar, User, Building2, FolderKanban } from 'lucide-react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
+import { MetadataFieldsForm } from './MetadataFieldsForm';
 
 interface EditDocumentModalProps {
   document: DocumentItem | DocumentSearchResult;
@@ -96,20 +97,6 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
 
   const handleRemoveTag = (tagToRemove: string) => {
     setTags(tags.filter((t) => t !== tagToRemove));
-  };
-
-  const handleAddMetadataRow = () => {
-    setMetadata([...metadata, { key: '', value: '' }]);
-  };
-
-  const handleMetadataChange = (index: number, field: 'key' | 'value', val: string) => {
-    const updated = [...metadata];
-    updated[index][field] = val;
-    setMetadata(updated);
-  };
-
-  const handleRemoveMetadataRow = (index: number) => {
-    setMetadata(metadata.filter((_, i) => i !== index));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -333,49 +320,7 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
           </div>
 
           {/* Métadonnées dynamiques */}
-          <div className="border border-brand-border p-3.5 bg-brand-surface rounded-lg space-y-2.5">
-            <div className="flex items-center justify-between border-b border-brand-border pb-1.5">
-              <label className="font-bold text-[11px] uppercase tracking-wider text-brand-muted">
-                Métadonnées dynamiques
-              </label>
-              <Button type="button" variant="outline" size="sm" icon={<Plus className="w-3 h-3" />} onClick={handleAddMetadataRow}>
-                Ajouter un champ
-              </Button>
-            </div>
-
-            {metadata.length === 0 ? (
-              <p className="text-[11px] text-brand-muted italic">Aucune métadonnée personnalisée.</p>
-            ) : (
-              <div className="space-y-2">
-                {metadata.map((row, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder="Clé (ex: Numéro de contrat)"
-                      value={row.key}
-                      onChange={(e) => handleMetadataChange(idx, 'key', e.target.value)}
-                      className="flex-1 bg-brand-surface border border-brand-border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-brand-primary"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Valeur (ex: CTR-2026-00521)"
-                      value={row.value}
-                      onChange={(e) => handleMetadataChange(idx, 'value', e.target.value)}
-                      className="flex-1 bg-brand-surface border border-brand-border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-brand-primary"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveMetadataRow(idx)}
-                      className="p-1 text-brand-muted hover:text-red-500 rounded-md transition-colors"
-                      title="Supprimer cette métadonnée"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <MetadataFieldsForm categoryId={categoryId} values={metadata} onChange={setMetadata} />
 
           {/* Footer Buttons */}
           <div className="pt-3 border-t border-brand-border flex items-center justify-end gap-2 shrink-0">

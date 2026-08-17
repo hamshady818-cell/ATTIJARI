@@ -4,6 +4,7 @@ import com.awb.ged.application.dto.document.DocumentMetadataValueDto;
 import com.awb.ged.application.dto.document.DocumentResponseDto;
 import com.awb.ged.application.dto.document.UpdateDocumentCommand;
 import com.awb.ged.application.mapper.DocumentMapper;
+import com.awb.ged.application.port.in.security.DocumentAccessValidator;
 import com.awb.ged.application.port.out.audit.AuditLogPort;
 import com.awb.ged.application.port.out.persistence.CategoryRepositoryPort;
 import com.awb.ged.application.port.out.persistence.DepartmentRepositoryPort;
@@ -12,6 +13,7 @@ import com.awb.ged.application.port.out.persistence.FolderRepositoryPort;
 import com.awb.ged.application.port.out.persistence.UserRepositoryPort;
 import com.awb.ged.common.exception.BusinessException;
 import com.awb.ged.common.exception.ConflictException;
+import com.awb.ged.common.exception.ErrorCode;
 import com.awb.ged.common.exception.InvalidRequestException;
 import com.awb.ged.domain.category.model.Category;
 import com.awb.ged.domain.department.model.Department;
@@ -37,6 +39,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -60,6 +65,12 @@ class UpdateDocumentServiceTest {
     @Mock
     private AuditLogPort auditLogPort;
 
+    @Mock
+    private DocumentAccessValidator documentAccessValidator;
+
+    @Mock
+    private DocumentLockGuard documentLockGuard;
+
     private final DocumentMapper documentMapper = Mappers.getMapper(DocumentMapper.class);
 
     private UpdateDocumentService updateDocumentService;
@@ -73,7 +84,9 @@ class UpdateDocumentServiceTest {
                 departmentRepositoryPort,
                 userRepositoryPort,
                 auditLogPort,
-                documentMapper
+                documentMapper,
+                documentAccessValidator,
+                documentLockGuard
         );
     }
 
@@ -151,22 +164,68 @@ class UpdateDocumentServiceTest {
     }
 
     @Test
-    @DisplayName("Should throw BusinessException when document is currently locked")
-    void updateDocument_LockedDocument_ThrowsException() {
+    @DisplayName("Should allow update when document is locked by the current user")
+    void updateDocument_LockedByCurrentUser_Success() {
+        // Given
         UUID docId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        Document lockedDoc = Document.builder()
+        Document doc = Document.builder()
                 .id(docId)
                 .name("Doc.pdf")
-                .lock(DocumentLock.builder().lockedBy(UUID.randomUUID()).lockedAt(Instant.now()).expiration(Instant.now().plusSeconds(600)).build())
+                .lock(DocumentLock.builder()
+                        .lockedBy(userId)
+                        .lockedAt(Instant.now())
+                        .expiration(Instant.now().plusSeconds(600))
+                        .build())
+                .build();
+        UpdateDocumentCommand command = UpdateDocumentCommand.builder().name("UpdatedDoc.pdf").build();
+
+        given(documentRepositoryPort.findById(docId)).willReturn(Optional.of(doc));
+        willDoNothing().given(documentLockGuard).assertNotLockedByOther(docId, userId);
+        given(documentRepositoryPort.findByFolderId(null)).willReturn(List.of(doc));
+        given(documentRepositoryPort.save(any(Document.class))).willAnswer(inv -> inv.getArgument(0));
+
+        // When
+        DocumentResponseDto result = updateDocumentService.updateDocument(docId, command, userId);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getName()).isEqualTo("UpdatedDoc.pdf");
+        verify(documentLockGuard).assertNotLockedByOther(docId, userId);
+        verify(documentRepositoryPort).save(any(Document.class));
+    }
+
+    @Test
+    @DisplayName("Should throw DOCUMENT_LOCKED when document is locked by another user")
+    void updateDocument_LockedByOtherUser_ThrowsException() {
+        // Given
+        UUID docId = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
+        UUID otherUserId = UUID.randomUUID();
+
+        Document doc = Document.builder()
+                .id(docId)
+                .name("Doc.pdf")
+                .lock(DocumentLock.builder()
+                        .lockedBy(otherUserId)
+                        .lockedAt(Instant.now())
+                        .expiration(Instant.now().plusSeconds(600))
+                        .build())
                 .build();
         UpdateDocumentCommand command = UpdateDocumentCommand.builder().name("NewDoc.pdf").build();
 
-        given(documentRepositoryPort.findById(docId)).willReturn(Optional.of(lockedDoc));
+        given(documentRepositoryPort.findById(docId)).willReturn(Optional.of(doc));
+        willThrow(new BusinessException(
+                ErrorCode.DOCUMENT_LOCKED,
+                "Ce document est verrouillé par un autre utilisateur et ne peut pas être modifié."
+        )).given(documentLockGuard).assertNotLockedByOther(docId, currentUserId);
 
-        assertThatThrownBy(() -> updateDocumentService.updateDocument(docId, command, userId))
+        // When / Then
+        assertThatThrownBy(() -> updateDocumentService.updateDocument(docId, command, currentUserId))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("locked document");
+                .hasMessageContaining("verrouillé par un autre utilisateur");
+
+        verify(documentRepositoryPort, never()).save(any());
     }
 
     @Test

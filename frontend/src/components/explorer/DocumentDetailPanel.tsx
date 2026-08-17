@@ -3,6 +3,7 @@ import { DocumentItem, DocumentSearchResult, DocumentVersion } from '../../types
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { documentApi } from '../../api/documentApi';
+import { metadataApi, MetadataDefinition } from '../../api/metadataApi';
 import { toast } from 'react-hot-toast';
 import { extractErrorMessage } from '../../utils/errorMessages';
 import { EditDocumentModal } from './EditDocumentModal';
@@ -24,6 +25,16 @@ import {
   Edit3,
   Building2,
   Tag as TagIcon,
+  Sliders,
+  CheckCircle2,
+  Clock,
+  FileSpreadsheet,
+  FileCode,
+  Image as ImageIcon,
+  File,
+  Sparkles,
+  Layers,
+  FileCheck,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -57,6 +68,23 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
   const [lockError, setLockError] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
+
+  // ── Fetch full document details (including metadata array)
+  const { data: fetchedDocument } = useQuery({
+    queryKey: ['document-details', document?.id],
+    queryFn: () => documentApi.getById(document!.id),
+    enabled: !!document?.id,
+  });
+
+  // ── Fetch metadata definitions to map labels and types
+  const { data: defsPage } = useQuery({
+    queryKey: ['metadata-definitions'],
+    queryFn: () => metadataApi.list(0, 100),
+  });
+
+  const definitions: MetadataDefinition[] = defsPage?.content || [];
+  const fullDoc = fetchedDocument || doc;
+  const metadataList = (fullDoc as any)?.metadata || [];
 
   // ── Polling de l'état du verrou toutes les 10 secondes
   const { data: lockStatus } = useQuery({
@@ -155,7 +183,13 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleString('fr-FR');
+    return new Date(dateStr).toLocaleString('fr-FR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   const PREVIEWABLE_EXTENSIONS = /\.(pdf|docx?|xlsx?|txt|csv|json|xml|html?|png|jpe?g|gif|webp|tiff?|bmp)$/i;
@@ -169,257 +203,455 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
     mimeType.includes('sheet') ||
     PREVIEWABLE_EXTENSIONS.test(document.name);
 
-  return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-brand-surface border-l border-brand-border shadow-popover flex flex-col animate-in slide-in-from-right duration-200">
-      {/* Top Accent Bar */}
-      <div className="h-1 bg-brand-primary w-full shrink-0" />
+  // File type badge visual helper
+  const getFileTypeInfo = (name: string, mime?: string) => {
+    const ext = name.split('.').pop()?.toLowerCase() || '';
+    if (ext === 'xlsx' || ext === 'xls' || ext === 'csv' || mime?.includes('excel') || mime?.includes('sheet')) {
+      return { label: 'XLSX', typeLabel: 'Document Excel', icon: <FileSpreadsheet className="w-5 h-5 text-emerald-600" />, badgeStyle: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+    }
+    if (ext === 'pdf' || mime?.includes('pdf')) {
+      return { label: 'PDF', typeLabel: 'Document PDF', icon: <FileText className="w-5 h-5 text-red-600" />, badgeStyle: 'bg-red-50 text-red-700 border-red-200' };
+    }
+    if (ext === 'docx' || ext === 'doc' || mime?.includes('word')) {
+      return { label: 'DOCX', typeLabel: 'Document Word', icon: <FileText className="w-5 h-5 text-blue-600" />, badgeStyle: 'bg-blue-50 text-blue-700 border-blue-200' };
+    }
+    if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(ext) || mime?.includes('image')) {
+      return { label: ext.toUpperCase(), typeLabel: 'Fichier Image', icon: <ImageIcon className="w-5 h-5 text-purple-600" />, badgeStyle: 'bg-purple-50 text-purple-700 border-purple-200' };
+    }
+    return { label: ext ? ext.toUpperCase() : 'FILE', typeLabel: 'Fichier Numérique', icon: <File className="w-5 h-5 text-slate-600" />, badgeStyle: 'bg-slate-100 text-slate-700 border-slate-200' };
+  };
 
-      {/* Panel Header */}
-      <div className="p-4 bg-brand-alt/50 border-b border-brand-border flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2.5 truncate">
-          <FileText className="w-4 h-4 text-brand-primary shrink-0" />
-          <h3 className="font-bold text-xs uppercase tracking-wider text-brand-text truncate">
-            {document.name}
-          </h3>
+  const fileTypeInfo = getFileTypeInfo(document.name, document.mimeType);
+
+  return (
+    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-xl sm:max-w-xl md:max-w-2xl bg-white border-l border-slate-200/90 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200 font-sans">
+      {/* Top Corporate Red Accent Line */}
+      <div className="h-1.5 bg-[#C8102E] w-full shrink-0" />
+
+      {/* ─────────────────────────────────────────────────────────────
+          1. HEADER STICKY DU DOCUMENT
+      ───────────────────────────────────────────────────────────── */}
+      <div className="p-5 bg-gradient-to-b from-slate-50/90 to-white border-b border-slate-200/80 shrink-0 space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3.5 flex-1 min-w-0">
+            <div className={`p-2.5 rounded-xl border ${fileTypeInfo.badgeStyle} shrink-0 shadow-xs flex items-center justify-center mt-0.5`}>
+              {fileTypeInfo.icon}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="font-bold text-base sm:text-lg text-slate-900 tracking-tight leading-snug break-words" title={document.name}>
+                  {document.name}
+                </h2>
+                <Badge status={fullDoc.status || doc.status} />
+              </div>
+              <p className="text-xs text-slate-500 font-medium flex items-center gap-2 mt-1">
+                <span>{fileTypeInfo.typeLabel}</span>
+                <span className="text-slate-300">•</span>
+                <span>Modifié le {formatDate(fullDoc.updatedAt || doc.updatedAt)}</span>
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all shrink-0"
+            aria-label="Fermer le panneau"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 text-brand-muted hover:text-brand-text hover:bg-brand-border/60 rounded-md transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
+
+        {/* Action Buttons Bar */}
+        <div className="flex items-center gap-2.5 pt-1">
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<Download className="w-4 h-4" />}
+            className="bg-[#C8102E] hover:bg-[#A60D25] text-white font-semibold text-xs px-4 py-2 rounded-lg shadow-sm hover:shadow transition-all flex-1 sm:flex-initial"
+            onClick={() => handleSecureDownload(document.id)}
+          >
+            Télécharger
+          </Button>
+
+          {canPreview ? (
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<Eye className="w-4 h-4" />}
+              className="border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs px-3.5 py-2 rounded-lg transition-all"
+              onClick={() => {
+                if (onPreview) {
+                  onPreview(document);
+                } else {
+                  window.open(documentApi.previewUrl(document.id), '_blank');
+                }
+              }}
+            >
+              Aperçu
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<ExternalLink className="w-4 h-4" />}
+              className="border-slate-200 opacity-50 cursor-not-allowed bg-slate-50 text-slate-400 text-xs px-3.5 py-2 rounded-lg"
+              title={`Aperçu non disponible pour ${mimeType || 'ce format'}`}
+              disabled
+            >
+              Aperçu
+            </Button>
+          )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<Edit3 className="w-4 h-4 text-slate-600" />}
+            className="border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs px-3.5 py-2 rounded-lg transition-all"
+            onClick={() => setIsEditModalOpen(true)}
+          >
+            Modifier
+          </Button>
+        </div>
+
+        {/* Download Error Banner */}
+        {downloadError && (
+          <div className="flex items-center gap-2.5 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg animate-in fade-in">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span className="font-medium">{downloadError}</span>
+          </div>
+        )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-brand-border bg-brand-bg text-xs font-semibold p-1 gap-1 shrink-0">
+      {/* ─────────────────────────────────────────────────────────────
+          2. NAV TABS STICKY
+      ───────────────────────────────────────────────────────────── */}
+      <div className="flex border-b border-slate-200 bg-slate-50/70 px-4 text-xs font-semibold shrink-0 gap-6">
         <button
           onClick={() => setActiveTab('info')}
-          className={`flex-1 py-2 px-2.5 flex items-center justify-center gap-1.5 rounded-md transition-all duration-150 ${
+          className={`py-3 px-1 flex items-center gap-2 border-b-2 transition-all duration-150 ${
             activeTab === 'info'
-              ? 'bg-brand-surface text-brand-primary shadow-xs font-bold'
-              : 'text-brand-muted hover:text-brand-text hover:bg-brand-surface/50'
+              ? 'border-[#C8102E] text-[#C8102E] font-bold'
+              : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300'
           }`}
         >
-          <Info className="w-3.5 h-3.5" />
-          Fiche
+          <Info className="w-4 h-4" />
+          Fiche Document
         </button>
 
         <button
           onClick={() => setActiveTab('versions')}
-          className={`flex-1 py-2 px-2.5 flex items-center justify-center gap-1.5 rounded-md transition-all duration-150 ${
+          className={`py-3 px-1 flex items-center gap-2 border-b-2 transition-all duration-150 ${
             activeTab === 'versions'
-              ? 'bg-brand-surface text-brand-primary shadow-xs font-bold'
-              : 'text-brand-muted hover:text-brand-text hover:bg-brand-surface/50'
+              ? 'border-[#C8102E] text-[#C8102E] font-bold'
+              : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300'
           }`}
         >
-          <History className="w-3.5 h-3.5" />
-          Historique ({versions.length})
+          <History className="w-4 h-4" />
+          Historique
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+            activeTab === 'versions' ? 'bg-red-50 text-[#C8102E]' : 'bg-slate-200 text-slate-600'
+          }`}>
+            {versions.length}
+          </span>
         </button>
 
         <button
           onClick={() => setActiveTab('status')}
-          className={`flex-1 py-2 px-2.5 flex items-center justify-center gap-1.5 rounded-md transition-all duration-150 ${
+          className={`py-3 px-1 flex items-center gap-2 border-b-2 transition-all duration-150 ${
             activeTab === 'status'
-              ? 'bg-brand-surface text-brand-primary shadow-xs font-bold'
-              : 'text-brand-muted hover:text-brand-text hover:bg-brand-surface/50'
+              ? 'border-[#C8102E] text-[#C8102E] font-bold'
+              : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300'
           }`}
         >
-          <Shield className="w-3.5 h-3.5" />
+          <Shield className="w-4 h-4" />
           Statut & Verrou
+          {isCurrentlyLocked && (
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Document verrouillé" />
+          )}
         </button>
       </div>
 
-      {/* Content Body */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+      {/* ─────────────────────────────────────────────────────────────
+          3. CONTENU PRINCIPAL PAR ONGLET
+      ───────────────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-5 text-xs bg-slate-50/40">
+        {/* ── TAB 1: FICHE DOCUMENT ─────────────────────────────── */}
         {activeTab === 'info' && (
-          <div className="space-y-4">
-            {/* Quick Actions Bar */}
-            <div className="flex items-center gap-2 p-2.5 bg-brand-alt/50 border border-brand-border rounded-lg shadow-xs">
-              {canPreview ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  icon={<Eye className="w-3.5 h-3.5" />}
-                  className="w-full flex-1"
-                  onClick={() => {
-                    if (onPreview) {
-                      onPreview(document);
-                    } else {
-                      window.open(documentApi.previewUrl(document.id), '_blank');
-                    }
-                  }}
-                >
-                  Aperçu
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  icon={<ExternalLink className="w-3.5 h-3.5" />}
-                  className="w-full flex-1 opacity-50 cursor-not-allowed"
-                  title={`Aperçu non disponible pour le format ${mimeType || 'inconnu'}`}
-                  disabled
-                >
-                  Aperçu
-                </Button>
-              )}
-
-              <Button
-                variant="primary"
-                size="sm"
-                icon={<Download className="w-3.5 h-3.5" />}
-                className="w-full flex-1"
-                onClick={() => handleSecureDownload(document.id)}
-              >
-                Télécharger
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                icon={<Edit3 className="w-3.5 h-3.5" />}
-                className="w-full flex-1 text-brand-primary border-brand-primary/40 hover:bg-brand-primary/10"
-                onClick={() => setIsEditModalOpen(true)}
-              >
-                Modifier
-              </Button>
-            </div>
-
-            {/* Message d'erreur téléchargement */}
-            {downloadError && (
-              <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-md">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                <span>{downloadError}</span>
-              </div>
-            )}
-
-            {/* General Properties */}
-            <div className="border border-brand-border p-3.5 space-y-2.5 bg-brand-surface rounded-lg shadow-card">
-              <div className="flex items-center justify-between border-b border-brand-border pb-1.5">
-                <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted">
-                  Propriétés Générales
-                </h4>
+          <div className="space-y-5">
+            {/* 1. INFORMATIONS GÉNÉRALES */}
+            <div className="bg-white border border-slate-200/80 rounded-xl p-4 shadow-xs space-y-3.5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <h3 className="font-bold text-[11px] uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                  <FileCheck className="w-4 h-4 text-slate-600" />
+                  Informations Générales
+                </h3>
                 <button
                   onClick={() => setIsEditModalOpen(true)}
-                  className="text-[11px] text-brand-primary font-bold hover:underline flex items-center gap-1"
+                  className="text-[11px] text-[#C8102E] font-bold hover:underline flex items-center gap-1"
                 >
-                  <Edit3 className="w-3 h-3" /> Modifier les propriétés
+                  <Edit3 className="w-3 h-3" /> Éditer les propriétés
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 text-xs">
                 <div>
-                  <span className="text-brand-muted block text-[10px] uppercase font-semibold">Statut</span>
-                  <Badge status={doc.status} />
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold tracking-wider mb-1">Statut Metier</span>
+                  <Badge status={fullDoc.status || doc.status} />
                 </div>
 
                 <div>
-                  <span className="text-brand-muted block text-[10px] uppercase font-semibold">Format / MIME</span>
-                  <span className="font-mono text-brand-text">{doc.mimeType || 'Standard'}</span>
-                </div>
-
-                <div>
-                  <span className="text-brand-muted block text-[10px] uppercase font-semibold">Catégorie</span>
-                  <span className="font-medium text-brand-text">
-                    {(doc as any).categoryName || 'Non catégorisé'}
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold tracking-wider mb-1">Format / MIME</span>
+                  <span className="font-mono text-xs font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/60 inline-block truncate max-w-full">
+                    {fullDoc.mimeType || doc.mimeType || 'Standard'}
                   </span>
                 </div>
 
                 <div>
-                  <span className="text-brand-muted block text-[10px] uppercase font-semibold">Département</span>
-                  <span className="font-medium text-brand-text">
-                    {(doc as any).departmentName || 'Tous départements'}
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold tracking-wider mb-1">Catégorie</span>
+                  <span className="font-medium text-slate-800 flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-slate-400" />
+                    {(fullDoc as any).categoryName || (doc as any).categoryName || 'Non catégorisé'}
                   </span>
                 </div>
 
                 <div>
-                  <span className="text-brand-muted block text-[10px] uppercase font-semibold">Responsable</span>
-                  <span className="font-medium text-brand-text">
-                    {(doc as any).ownerName || (doc as any).ownerUsername || doc.ownerId || '-'}
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold tracking-wider mb-1">Département</span>
+                  <span className="font-medium text-slate-800 flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                    {(fullDoc as any).departmentName || (doc as any).departmentName || 'Tous départements'}
                   </span>
                 </div>
 
                 <div>
-                  <span className="text-brand-muted block text-[10px] uppercase font-semibold">Date d'expiration</span>
-                  <span className="font-mono text-brand-text">
-                    {(doc as any).expirationDate || '-'}
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold tracking-wider mb-1">Responsable</span>
+                  <span className="font-medium text-slate-800 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-slate-400" />
+                    {(fullDoc as any).ownerName || (fullDoc as any).ownerUsername || (doc as any).ownerName || (doc as any).ownerUsername || doc.ownerId || '-'}
                   </span>
                 </div>
 
                 <div>
-                  <span className="text-brand-muted block text-[10px] uppercase font-semibold">Créé le</span>
-                  <span className="font-mono text-brand-text">{formatDate(doc.createdAt)}</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold tracking-wider mb-1">Date d'expiration</span>
+                  <span className="font-mono text-slate-700 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    {(fullDoc as any).expirationDate || (doc as any).expirationDate || '—'}
+                  </span>
                 </div>
 
                 <div>
-                  <span className="text-brand-muted block text-[10px] uppercase font-semibold">Modifié le</span>
-                  <span className="font-mono text-brand-text">{formatDate(doc.updatedAt)}</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold tracking-wider mb-1">Date de création</span>
+                  <span className="font-mono text-slate-700 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-slate-400" />
+                    {formatDate(fullDoc.createdAt || doc.createdAt)}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold tracking-wider mb-1">Dernière modification</span>
+                  <span className="font-mono text-slate-700 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-slate-400" />
+                    {formatDate(fullDoc.updatedAt || doc.updatedAt)}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Description */}
-            <div className="border border-brand-border p-3.5 bg-brand-surface rounded-lg shadow-card">
-              <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted border-b border-brand-border pb-1.5 mb-2">
+            {/* 2. MÉTADONNÉES DYNAMIQUES */}
+            <div className="bg-white border border-slate-200/80 rounded-xl p-4 shadow-xs space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <div>
+                  <h3 className="font-bold text-[11px] uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-[#C8102E]" />
+                    Métadonnées Spécifiques
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-normal mt-0.5">
+                    Informations personnalisées associées à ce document
+                  </p>
+                </div>
+              </div>
+
+              {metadataList.length === 0 ? (
+                <div className="p-3 text-center bg-slate-50 rounded-lg border border-slate-100 text-slate-400 italic text-xs">
+                  Aucune métadonnée renseignée pour ce document.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-1">
+                  {metadataList.map((meta: any, idx: number) => {
+                    const def = definitions.find(
+                      (d) =>
+                        (meta.definitionId && d.id === meta.definitionId) ||
+                        (d.name && meta.key && d.name.toLowerCase() === meta.key.toLowerCase()) ||
+                        (d.label && meta.key && d.label.toLowerCase() === meta.key.toLowerCase())
+                    );
+                    const label = def?.label || def?.name || meta.key;
+                    let type = def?.type || 'STRING';
+                    const rawVal = meta.value != null ? String(meta.value).trim() : '';
+
+                    // Fallback type inference if definition not found
+                    if (!def) {
+                      if (rawVal === 'true' || rawVal === 'false') {
+                        type = 'BOOLEAN';
+                      } else if (rawVal.startsWith('[') || (rawVal.includes(',') && !rawVal.includes(' '))) {
+                        type = 'MULTI_SELECT';
+                      }
+                    }
+
+                    const renderFormattedValue = () => {
+                      if (!rawVal && rawVal !== 'false') {
+                        return <span className="text-slate-400 italic text-xs">Non renseigné</span>;
+                      }
+
+                      if (type === 'BOOLEAN' || rawVal === 'true' || rawVal === 'false') {
+                        const isTrue = rawVal === 'true' || rawVal === '1';
+                        return (
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                              isTrue
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-slate-100 text-slate-600 border-slate-200'
+                            }`}
+                          >
+                            {isTrue ? (
+                              <>
+                                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> Oui
+                              </>
+                            ) : (
+                              'Non'
+                            )}
+                          </span>
+                        );
+                      }
+
+                      if (type === 'MULTI_SELECT' || rawVal.startsWith('[')) {
+                        let items: string[] = [];
+                        if (rawVal.startsWith('[') && rawVal.endsWith(']')) {
+                          try {
+                            const parsed = JSON.parse(rawVal);
+                            if (Array.isArray(parsed)) {
+                              items = parsed.map((s: any) => String(s).trim()).filter(Boolean);
+                            }
+                          } catch (e) {
+                            items = rawVal.replace(/[\[\]"]/g, '').split(',').map((s) => s.trim()).filter(Boolean);
+                          }
+                        } else {
+                          items = rawVal.split(',').map((s: string) => s.trim()).filter(Boolean);
+                        }
+
+                        if (items.length === 0) {
+                          return <span className="text-slate-400 italic text-xs">Non renseigné</span>;
+                        }
+                        return (
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {items.map((item: string, i: number) => (
+                              <span
+                                key={i}
+                                className="px-2.5 py-1 text-xs font-semibold bg-red-50 text-[#C8102E] border border-red-100 rounded-md shadow-xs"
+                              >
+                                {item}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      }
+
+                      if (type === 'SELECT') {
+                        return (
+                          <span className="font-semibold text-slate-800 text-xs bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200 inline-block shadow-xs">
+                            {rawVal}
+                          </span>
+                        );
+                      }
+
+                      if (type === 'URL') {
+                        return (
+                          <a
+                            href={rawVal.startsWith('http') ? rawVal : `https://${rawVal}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-[#C8102E] hover:underline text-xs truncate block font-medium"
+                          >
+                            {rawVal}
+                          </a>
+                        );
+                      }
+
+                      return <span className="font-semibold text-slate-800 text-xs block font-mono">{rawVal}</span>;
+                    };
+
+                    return (
+                      <div key={idx} className={type === 'MULTI_SELECT' ? 'col-span-full' : ''}>
+                        <span className="text-slate-400 block text-[10px] uppercase font-semibold tracking-wider mb-1">
+                          {label}
+                        </span>
+                        {renderFormattedValue()}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 3. DESCRIPTION & NOTES */}
+            <div className="bg-white border border-slate-200/80 rounded-xl p-4 shadow-xs space-y-2">
+              <h3 className="font-bold text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">
                 Description & Notes
-              </h4>
-              <p className="text-brand-text italic">
-                {doc.description || 'Aucune description renseignée.'}
+              </h3>
+              <p className="text-slate-700 leading-relaxed text-xs pt-1">
+                {fullDoc.description || doc.description ? (
+                  <span className="italic">{fullDoc.description || doc.description}</span>
+                ) : (
+                  <span className="text-slate-400 italic">Aucune description renseignée.</span>
+                )}
               </p>
             </div>
 
-            {/* Tags */}
-            <div className="border border-brand-border p-3.5 bg-brand-surface rounded-lg shadow-card">
-              <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted border-b border-brand-border pb-1.5 mb-2">
+            {/* 4. ÉTIQUETTES (TAGS) */}
+            <div className="bg-white border border-slate-200/80 rounded-xl p-4 shadow-xs space-y-2.5">
+              <h3 className="font-bold text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2 flex items-center gap-1.5">
+                <TagIcon className="w-3.5 h-3.5 text-slate-500" />
                 Étiquettes (Tags)
-              </h4>
-              <div className="flex flex-wrap gap-1.5">
-                {doc.tags && doc.tags.length > 0 ? (
-                  doc.tags.map((t) => <Badge key={t} variant="tag">{t}</Badge>)
+              </h3>
+              <div className="flex flex-wrap gap-2 pt-0.5">
+                {(fullDoc.tags || doc.tags) && (fullDoc.tags || doc.tags)!.length > 0 ? (
+                  (fullDoc.tags || doc.tags)!.map((t) => (
+                    <span key={t} className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200/80 shadow-xs">
+                      #{t}
+                    </span>
+                  ))
                 ) : (
-                  <span className="text-brand-muted italic">Aucun tag</span>
+                  <span className="text-slate-400 italic">Aucune étiquette définie.</span>
                 )}
               </div>
             </div>
-
-            {/* Dynamic Metadata */}
-            {(doc as any).metadata && (doc as any).metadata.length > 0 && (
-              <div className="border border-brand-border p-3.5 bg-brand-surface rounded-lg shadow-card">
-                <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted border-b border-brand-border pb-1.5 mb-2">
-                  Métadonnées dynamiques
-                </h4>
-                <div className="space-y-1.5">
-                  {(doc as any).metadata.map((meta: any, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between text-xs py-1 border-b border-brand-border/40 last:border-0">
-                      <span className="text-brand-muted font-medium">{meta.key}</span>
-                      <span className="font-semibold text-brand-text">{meta.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
+        {/* ── TAB 2: HISTORIQUE ET VERSIONS ──────────────────────── */}
         {activeTab === 'versions' && (
-          <div className="space-y-4">
-            {/* Upload New Version Form */}
-            <form onSubmit={handleUploadVersion} className="border border-brand-border p-3.5 bg-brand-alt/50 rounded-lg space-y-2.5">
-              <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-text">
-                Verser une nouvelle version
-              </h4>
+          <div className="space-y-5">
+            {/* Formulaire Nouvel envoi */}
+            <form onSubmit={handleUploadVersion} className="bg-white border border-slate-200/80 p-4 rounded-xl shadow-xs space-y-3">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                <Upload className="w-4 h-4 text-[#C8102E]" />
+                <h3 className="font-bold text-[11px] uppercase tracking-wider text-slate-700">
+                  Verser une nouvelle version du document
+                </h3>
+              </div>
+
               <input
                 type="file"
                 onChange={(e) => setNewVersionFile(e.target.files?.[0] || null)}
-                className="block w-full text-xs text-brand-text file:mr-2 file:py-1 file:px-2.5 file:border file:border-brand-border file:bg-white file:rounded-md file:text-xs hover:file:bg-brand-alt cursor-pointer"
+                className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:border file:border-slate-200 file:bg-slate-50 file:rounded-lg file:text-xs file:font-semibold hover:file:bg-slate-100 cursor-pointer"
               />
+
               <input
                 type="text"
-                placeholder="Note de version (ex: révision clause 4)..."
+                placeholder="Note de version (ex: Révision clause 4, mise à jour tarifaire)..."
                 value={changeSummary}
                 onChange={(e) => setChangeSummary(e.target.value)}
-                className="w-full bg-brand-surface border border-brand-border rounded-md px-3 py-1.5 text-xs focus:outline-none focus:border-brand-primary"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-[#C8102E] focus:bg-white transition-all"
               />
+
               <Button
                 type="submit"
                 variant="primary"
@@ -427,135 +659,160 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
                 icon={<Upload className="w-3.5 h-3.5" />}
                 loading={isUploadingVersion}
                 disabled={!newVersionFile}
+                className="bg-[#C8102E] hover:bg-[#A60D25] text-white text-xs font-semibold"
               >
                 Verser v{versions.length + 1}
               </Button>
             </form>
 
-            {/* Version List */}
-            <div className="space-y-2.5">
-              <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted">
-                Historique des versions
-              </h4>
+            {/* Timeline Historique */}
+            <div className="space-y-3">
+              <h3 className="font-bold text-[11px] uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                <History className="w-4 h-4 text-slate-600" />
+                Historique Complet des Versions
+              </h3>
+
               {versions.length === 0 ? (
-                <div className="p-4 text-center text-brand-muted italic border border-brand-border bg-brand-surface rounded-lg">
-                  Une seule version initiale (v1)
+                <div className="p-5 text-center text-slate-400 italic bg-white border border-slate-200/80 rounded-xl shadow-xs">
+                  Une seule version initiale (v1) enregistrée.
                 </div>
               ) : (
-                versions.map((ver) => (
-                  <div
-                    key={ver.id}
-                    className="border border-brand-border p-3 bg-brand-surface rounded-lg shadow-card flex items-center justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-xs text-brand-primary">v{ver.versionNumber}</span>
-                        {ver.id === document.activeVersionId && (
-                          <span className="text-[9px] bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold px-1.5 py-0.5 rounded-md">
-                            ACTIF
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[11px] text-brand-muted font-mono mt-0.5">
-                        SHA256: {ver.hash ? ver.hash.substring(0, 16) + '...' : '-'}
-                      </div>
-                      <div className="text-[10px] text-brand-muted mt-0.5">
-                        Versé le {formatDate(ver.uploadedAt)}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => handleSecureDownload(document.id, ver.id)}
-                      className="p-1.5 border border-brand-border hover:border-brand-primary text-brand-muted hover:text-brand-primary rounded-md transition-colors"
-                      title="Télécharger cette version"
+                <div className="relative pl-3 space-y-3 before:absolute before:left-5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200">
+                  {versions.map((ver) => (
+                    <div
+                      key={ver.id}
+                      className="relative pl-6 bg-white border border-slate-200/80 p-3.5 rounded-xl shadow-xs flex items-center justify-between gap-3"
                     >
-                      <Download className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))
+                      <div className="absolute left-3 top-4 w-2.5 h-2.5 rounded-full bg-[#C8102E] ring-4 ring-white" />
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono font-bold text-xs text-[#C8102E] bg-red-50 px-2 py-0.5 rounded border border-red-100">
+                            v{ver.versionNumber}
+                          </span>
+                          {ver.id === document.activeVersionId && (
+                            <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                              <CheckCircle className="w-3 h-3 text-emerald-600" /> VERSION ACTIVES
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-600 font-medium">
+                          {(ver as any).summary || 'Nouvelle version versée'}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono">
+                          SHA256: {ver.hash ? ver.hash.substring(0, 20) + '...' : '-'} • Versé le {formatDate(ver.uploadedAt)}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleSecureDownload(document.id, ver.id)}
+                        className="p-2 border border-slate-200 hover:border-[#C8102E] text-slate-500 hover:text-[#C8102E] bg-slate-50 hover:bg-red-50 rounded-lg transition-all shrink-0"
+                        title="Télécharger cette version"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>
         )}
 
+        {/* ── TAB 3: STATUT ET VERROU ────────────────────────────── */}
         {activeTab === 'status' && (
-          <div className="space-y-4">
-            {/* Lock Control */}
-            <div className="border border-brand-border p-3.5 bg-brand-surface rounded-lg shadow-card space-y-2.5">
-              <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted">
-                Contrôle d'accès & Verrou (Check-out)
-              </h4>
+          <div className="space-y-5">
+            {/* Contrôle de Verrou (Check-out) */}
+            <div className="bg-white border border-slate-200/80 p-4 rounded-xl shadow-xs space-y-3">
+              <h3 className="font-bold text-[11px] uppercase tracking-wider text-slate-500 flex items-center gap-2 border-b border-slate-100 pb-2">
+                <Lock className="w-4 h-4 text-slate-600" />
+                Contrôle d'Accès & Verrou (Check-out)
+              </h3>
 
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <span className="font-semibold block">
-                    {isCurrentlyLocked ? 'Document actuellement verrouillé' : 'Document libre en édition'}
+              <div className="flex items-center justify-between gap-4 pt-1">
+                <div className="space-y-1">
+                  <span className="font-semibold text-slate-800 text-xs block">
+                    {isCurrentlyLocked ? '🔒 Document actuellement verrouillé' : '🔓 Document disponible en édition'}
                   </span>
-                  <span className="text-[11px] text-brand-muted block mt-0.5">
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
                     {isCurrentlyLocked
-                      ? 'Un seul agent peut modifier ou verser une version à la fois.'
-                      : 'Vous pouvez poser un verrou pour empêcher les modifications concurrentes.'}
-                  </span>
+                      ? 'Un utilisateur détient le verrou d\'édition sur ce document.'
+                      : 'Poser un verrou empêche les modifications concurrentes par d\'autres employés.'}
+                  </p>
                   {lockStatus?.lockedByUsername && isCurrentlyLocked && (
-                    <span className="text-[11px] text-amber-700 font-medium block mt-1">
-                      Verrouillé par : {lockStatus.lockedByUsername}
+                    <span className="text-xs text-amber-800 font-medium block bg-amber-50 px-2.5 py-1 rounded border border-amber-200 mt-1">
+                      Verrouillé par : <strong>{lockStatus.lockedByUsername}</strong>
                     </span>
                   )}
                 </div>
+
                 <Button
                   variant={isCurrentlyLocked ? 'danger' : 'outline'}
                   size="sm"
-                  icon={<Lock className="w-3.5 h-3.5" />}
+                  icon={<Lock className="w-4 h-4" />}
                   onClick={handleToggleCheckout}
-                  className="shrink-0"
+                  className={`shrink-0 font-semibold ${
+                    isCurrentlyLocked
+                      ? 'bg-amber-600 hover:bg-amber-700 border-amber-600 text-white'
+                      : 'border-slate-200 hover:border-slate-300 text-slate-700'
+                  }`}
                 >
-                  {isCurrentlyLocked ? 'Check-in' : 'Check-out'}
+                  {isCurrentlyLocked ? 'Déverrouiller (Check-in)' : 'Verrouiller (Check-out)'}
                 </Button>
               </div>
 
               {/* Erreur verrou */}
               {lockError && (
-                <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-md">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <div className="flex items-center gap-2.5 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{lockError}</span>
                 </div>
               )}
             </div>
 
-            {/* Lifecycle Status Change */}
-            <div className="border border-brand-border p-3.5 bg-brand-surface rounded-lg shadow-card space-y-2.5">
-              <h4 className="font-bold text-[11px] uppercase tracking-wider text-brand-muted">
-                Changer le statut du document
-              </h4>
-              <p className="text-[11px] text-brand-muted">
-                Statut actuel : <Badge status={document.status} />
-              </p>
-              <div className="grid grid-cols-2 gap-2 pt-1">
+            {/* Transition de statut Métier */}
+            <div className="bg-white border border-slate-200/80 p-4 rounded-xl shadow-xs space-y-3">
+              <h3 className="font-bold text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">
+                Changer le Statut du Document
+              </h3>
+
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500">Statut actuel :</span>
+                <Badge status={document.status} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5 pt-2">
                 <Button
                   variant={document.status === 'DRAFT' ? 'primary' : 'outline'}
                   size="sm"
                   onClick={() => handleChangeStatus('DRAFT')}
+                  className={document.status === 'DRAFT' ? 'bg-slate-700 border-slate-700 text-white font-bold' : ''}
                 >
                   BROUILLON
                 </Button>
+
                 <Button
                   variant={document.status === 'PUBLISHED' ? 'primary' : 'outline'}
                   size="sm"
                   onClick={() => handleChangeStatus('PUBLISHED')}
+                  className={document.status === 'PUBLISHED' ? 'bg-emerald-600 border-emerald-600 text-white font-bold' : ''}
                 >
                   PUBLIÉ
                 </Button>
+
                 <Button
                   variant={document.status === 'ARCHIVED' ? 'primary' : 'outline'}
                   size="sm"
                   onClick={() => handleChangeStatus('ARCHIVED')}
+                  className={document.status === 'ARCHIVED' ? 'bg-amber-600 border-amber-600 text-white font-bold' : ''}
                 >
                   ARCHIVÉ
                 </Button>
+
                 <Button
                   variant={document.status === 'TRASHED' ? 'danger' : 'outline'}
                   size="sm"
                   onClick={() => handleChangeStatus('TRASHED')}
+                  className={document.status === 'TRASHED' ? 'bg-[#C8102E] border-[#C8102E] text-white font-bold' : ''}
                 >
                   CORBEILLE
                 </Button>
@@ -563,8 +820,8 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
 
               {/* Erreur statut */}
               {statusError && (
-                <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-md">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <div className="flex items-center gap-2.5 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{statusError}</span>
                 </div>
               )}
@@ -573,14 +830,17 @@ export const DocumentDetailPanel: React.FC<DocumentDetailPanelProps> = ({
         )}
       </div>
 
-      {/* Edit Document Properties Modal */}
+      {/* ─────────────────────────────────────────────────────────────
+          MODAL DE MODIFICATION DES PROPRIÉTÉS
+      ───────────────────────────────────────────────────────────── */}
       <EditDocumentModal
-        document={doc!}
+        document={fullDoc!}
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         onSuccess={(updatedDoc) => {
           setCurrentDocument(updatedDoc);
           onRefresh();
+          queryClient.invalidateQueries({ queryKey: ['document-details', document.id] });
           queryClient.invalidateQueries({ queryKey: ['folder-content'] });
           queryClient.invalidateQueries({ queryKey: ['search-documents'] });
         }}

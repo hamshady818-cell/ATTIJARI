@@ -55,6 +55,12 @@ class MetadataDefinitionControllerTest {
     @MockitoBean
     private DeleteMetadataDefinitionUseCase deleteUseCase;
 
+    @MockitoBean
+    private ListDeletedMetadataDefinitionsUseCase listDeletedUseCase;
+
+    @MockitoBean
+    private RestoreMetadataDefinitionUseCase restoreUseCase;
+
     @Test
     @WithMockUser(roles = "ADMIN")
     @DisplayName("POST /api/v1/metadata-definitions - Success with ADMIN role")

@@ -95,7 +95,20 @@ export interface CategoryItem {
   id: string;
   name: string;
   description?: string;
+  parentId?: string | null;
+  path?: string;
+  color?: string;
+  icon?: string;
+  securityClass?: string;
+  active: boolean;
+  deletedAt?: string | null;
+  deletedBy?: string | null;
+  metadataCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
+
+export type Category = CategoryItem;
 
 export interface TagItem {
   id: string;

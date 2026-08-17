@@ -20,12 +20,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.awb.ged.application.dto.document.DocumentMetadataValueDto;
+import com.awb.ged.domain.document.model.DocumentMetadataValue;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HexFormat;
-import java.util.List;
-import java.util.UUID;
+import com.awb.ged.application.port.out.persistence.MetadataDefinitionRepositoryPort;
+import com.awb.ged.common.model.PageResponse;
+import com.awb.ged.domain.metadata.model.MetadataDefinition;
+import com.awb.ged.domain.metadata.model.MetadataType;
+import com.awb.ged.common.exception.InvalidRequestException;
+
+import java.util.*;
 
 @Service
 @Transactional
@@ -38,6 +46,7 @@ public class UploadDocumentService implements UploadDocumentUseCase {
     private final DocumentMapper documentMapper;
     private final EventPublisherPort eventPublisherPort;
     private final DocumentAccessValidator documentAccessValidator;
+    private final MetadataDefinitionRepositoryPort metadataDefinitionRepositoryPort;
 
     @Autowired
     public UploadDocumentService(DocumentRepositoryPort documentRepositoryPort,
@@ -46,7 +55,8 @@ public class UploadDocumentService implements UploadDocumentUseCase {
                                  StoragePort storagePort,
                                  DocumentMapper documentMapper,
                                  EventPublisherPort eventPublisherPort,
-                                 DocumentAccessValidator documentAccessValidator) {
+                                 DocumentAccessValidator documentAccessValidator,
+                                 MetadataDefinitionRepositoryPort metadataDefinitionRepositoryPort) {
         this.documentRepositoryPort = documentRepositoryPort;
         this.folderRepositoryPort = folderRepositoryPort;
         this.userRepositoryPort = userRepositoryPort;
@@ -54,6 +64,7 @@ public class UploadDocumentService implements UploadDocumentUseCase {
         this.documentMapper = documentMapper;
         this.eventPublisherPort = eventPublisherPort;
         this.documentAccessValidator = documentAccessValidator;
+        this.metadataDefinitionRepositoryPort = metadataDefinitionRepositoryPort;
     }
 
     public UploadDocumentService(DocumentRepositoryPort documentRepositoryPort,
@@ -61,11 +72,14 @@ public class UploadDocumentService implements UploadDocumentUseCase {
                                  UserRepositoryPort userRepositoryPort,
                                  StoragePort storagePort,
                                  DocumentMapper documentMapper) {
-        this(documentRepositoryPort, folderRepositoryPort, userRepositoryPort, storagePort, documentMapper, null, null);
+        this(documentRepositoryPort, folderRepositoryPort, userRepositoryPort, storagePort, documentMapper, null, null, null);
     }
 
     @Override
     public DocumentResponseDto uploadDocument(UploadDocumentCommand command) {
+        // 0. Validate required metadata definitions
+        validateRequiredMetadata(command.getMetadata());
+
         // 1. Verify folder existence if specified
         if (command.getFolderId() != null) {
             folderRepositoryPort.findById(command.getFolderId())
@@ -134,6 +148,19 @@ public class UploadDocumentService implements UploadDocumentUseCase {
                 .build();
 
         // 7. Build Document Aggregate Root (initial save without activeVersionId to satisfy @NotNull on DocumentVersionJpaEntity)
+        List<DocumentMetadataValue> metadataValues = new ArrayList<>();
+        if (command.getMetadata() != null) {
+            for (DocumentMetadataValueDto dto : command.getMetadata()) {
+                if (dto.getDefinitionId() != null) {
+                    metadataValues.add(DocumentMetadataValue.builder()
+                            .definitionId(dto.getDefinitionId())
+                            .key(dto.getKey())
+                            .value(dto.getValue())
+                            .build());
+                }
+            }
+        }
+
         Document document = Document.builder()
                 .id(documentId)
                 .name(command.getName().trim())
@@ -141,6 +168,7 @@ public class UploadDocumentService implements UploadDocumentUseCase {
                 .categoryId(command.getCategoryId())
                 .ownerId(command.getOwnerId())
                 .mimeType(effectiveMimeType)
+                .metadata(metadataValues)
                 .activeVersionId(null)
                 .createdAt(now)
                 .updatedAt(now)
@@ -182,5 +210,62 @@ public class UploadDocumentService implements UploadDocumentUseCase {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 algorithm not supported", e);
         }
+    }
+
+    private void validateRequiredMetadata(List<DocumentMetadataValueDto> metadataDtos) {
+        if (metadataDefinitionRepositoryPort == null) {
+            return;
+        }
+        PageResponse<MetadataDefinition> activeDefsPage = metadataDefinitionRepositoryPort.findAllActive(0, 1000);
+        List<MetadataDefinition> activeDefs = (activeDefsPage != null && activeDefsPage.getContent() != null)
+                ? activeDefsPage.getContent()
+                : Collections.emptyList();
+
+        if (activeDefs.isEmpty()) {
+            return;
+        }
+
+        Map<UUID, DocumentMetadataValueDto> dtosByDefId = new HashMap<>();
+        Map<String, DocumentMetadataValueDto> dtosByKey = new HashMap<>();
+        if (metadataDtos != null) {
+            for (DocumentMetadataValueDto dto : metadataDtos) {
+                if (dto.getDefinitionId() != null) {
+                    dtosByDefId.put(dto.getDefinitionId(), dto);
+                }
+                if (dto.getKey() != null && !dto.getKey().trim().isEmpty()) {
+                    dtosByKey.put(dto.getKey().trim().toLowerCase(), dto);
+                }
+            }
+        }
+
+        for (MetadataDefinition def : activeDefs) {
+            if (def.isActive() && def.isRequired()) {
+                DocumentMetadataValueDto dto = dtosByDefId.get(def.getId());
+                if (dto == null && def.getName() != null) {
+                    dto = dtosByKey.get(def.getName().trim().toLowerCase());
+                }
+
+                if (dto == null || isValueEmpty(def.getType(), dto.getValue())) {
+                    throw new InvalidRequestException(
+                            ErrorCode.INVALID_INPUT,
+                            "La métadonnée '" + def.getLabel() + "' est obligatoire."
+                    );
+                }
+            }
+        }
+    }
+
+    private boolean isValueEmpty(MetadataType type, String value) {
+        if (value == null) {
+            return true;
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty() || "null".equalsIgnoreCase(trimmed) || "undefined".equalsIgnoreCase(trimmed)) {
+            return true;
+        }
+        if (type == MetadataType.BOOLEAN) {
+            return !("true".equalsIgnoreCase(trimmed) || "false".equalsIgnoreCase(trimmed));
+        }
+        return false;
     }
 }

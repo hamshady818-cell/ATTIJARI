@@ -11,6 +11,7 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -169,6 +170,19 @@ public class MetadataDefinitionJpaEntity extends BaseEntity {
     @Builder.Default
     private int displayOrder = 0;
 
+    /**
+     * Optional detailed description of the metadata field for administrators and users.
+     */
+    @Column(name = "description", length = 500)
+    private String description;
+
+    /**
+     * Whether this field is active. Inactive fields are preserved in DB but hidden from normal forms.
+     */
+    @Column(name = "is_active", nullable = false)
+    @Builder.Default
+    private boolean active = true;
+
     // ─────────────────────────────────────────────────────────────────────────
     //  Relationships
     // ─────────────────────────────────────────────────────────────────────────
@@ -195,4 +209,14 @@ public class MetadataDefinitionJpaEntity extends BaseEntity {
             foreignKey = @ForeignKey(name = "fk_metadata_def_created_by")
     )
     private UserJpaEntity createdBy;
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "deleted_by",
+            foreignKey = @ForeignKey(name = "fk_metadata_def_deleted_by")
+    )
+    private UserJpaEntity deletedBy;
 }

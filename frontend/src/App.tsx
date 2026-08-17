@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ExplorerPage } from './pages/ExplorerPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { TrashPage } from './pages/TrashPage';
+import { MetadataDefinitionsPage } from './pages/MetadataDefinitionsPage';
+import { CategoriesPage } from './pages/CategoriesPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
@@ -78,6 +80,22 @@ export const App: React.FC = () => {
             element={
               <ProtectedRoute>
                 <TrashPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/metadata-definitions"
+            element={
+              <ProtectedRoute>
+                <MetadataDefinitionsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/categories"
+            element={
+              <ProtectedRoute>
+                <CategoriesPage />
               </ProtectedRoute>
             }
           />

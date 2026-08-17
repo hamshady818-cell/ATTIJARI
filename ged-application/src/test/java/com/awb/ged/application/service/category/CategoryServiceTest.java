@@ -15,6 +15,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mapstruct.factory.Mappers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import com.awb.ged.common.model.PageResponse;
+import com.awb.ged.domain.metadata.model.MetadataDefinition;
 
 import java.util.List;
 import java.util.Optional;
@@ -27,10 +31,14 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class CategoryServiceTest {
 
     @Mock
     private CategoryRepositoryPort categoryRepositoryPort;
+
+    @Mock
+    private com.awb.ged.application.port.out.persistence.MetadataDefinitionRepositoryPort metadataDefinitionRepositoryPort;
 
     private final CategoryMapper categoryMapper = Mappers.getMapper(CategoryMapper.class);
 
@@ -38,7 +46,9 @@ class CategoryServiceTest {
 
     @BeforeEach
     void setUp() {
-        categoryService = new CategoryService(categoryRepositoryPort, categoryMapper);
+        categoryService = new CategoryService(categoryRepositoryPort, metadataDefinitionRepositoryPort, categoryMapper);
+        PageResponse<MetadataDefinition> emptyPage = PageResponse.<MetadataDefinition>builder().content(List.of()).build();
+        given(metadataDefinitionRepositoryPort.findAllActive(any(Integer.class), any(Integer.class))).willReturn(emptyPage);
     }
 
     @Test
@@ -113,7 +123,7 @@ class CategoryServiceTest {
         Category child = Category.builder().id(UUID.randomUUID()).parentId(catId).build();
 
         given(categoryRepositoryPort.findById(catId)).willReturn(Optional.of(category));
-        given(categoryRepositoryPort.findByParentId(catId)).willReturn(List.of(child));
+        given(categoryRepositoryPort.findActiveByParentId(catId)).willReturn(List.of(child));
 
         // When / Then
         assertThatThrownBy(() -> categoryService.deleteCategory(catId))
